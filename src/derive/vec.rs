@@ -218,6 +218,7 @@ impl<'b, T: Encode> Encoder<&'b [T]> for VecEncoder<T> {
     }
 }
 
+pub struct VecDecoder<'a, T: Decode<'a> + Send + Sync> {
     // pub(crate) for arrayvec::ArrayVec.
     pub(crate) lengths: LengthDecoder<'a>,
     pub(crate) elements: T::Decoder,
@@ -225,7 +226,7 @@ impl<'b, T: Encode> Encoder<&'b [T]> for VecEncoder<T> {
 }
 
 // Can't derive since it would bound T: Default.
-impl<'a, T: Decode<'a>> Default for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Send + Sync> Default for VecDecoder<'a, T> {
     fn default() -> Self {
         Self {
             lengths: Default::default(),
@@ -235,7 +236,7 @@ impl<'a, T: Decode<'a>> Default for VecDecoder<'a, T> {
     }
 }
 
-impl<'a, T: Decode<'a>> View<'a> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Send + Sync> View<'a> for VecDecoder<'a, T> {
     fn populate(&mut self, input: &mut &'a [u8], length: usize) -> Result<()> {
         self.lengths.populate(input, length)?;
         self.elements.populate(input, self.lengths.length())?;
@@ -363,7 +364,7 @@ impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, Vec<T>> for VecDecoder<'a, T> 
 impl<T: Encode> Encoder<BinaryHeap<T>> for VecEncoder<T> {
     encode_body!(BinaryHeap<T>); // When BinaryHeap::as_slice is stable use [T] impl.
 }
-impl<'a, T: Decode<'a> + Ord> Decoder<'a, BinaryHeap<T>> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Ord + Send + Sync> Decoder<'a, BinaryHeap<T>> for VecDecoder<'a, T> {
     #[inline(always)]
     fn decode(&mut self) -> BinaryHeap<T> {
         let v: Vec<T> = self.decode();
@@ -374,7 +375,7 @@ impl<'a, T: Decode<'a> + Ord> Decoder<'a, BinaryHeap<T>> for VecDecoder<'a, T> {
 impl<T: Encode> Encoder<BTreeSet<T>> for VecEncoder<T> {
     encode_body!(BTreeSet<T>);
 }
-impl<'a, T: Decode<'a> + Ord> Decoder<'a, BTreeSet<T>> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Ord + Send + Sync> Decoder<'a, BTreeSet<T>> for VecDecoder<'a, T> {
     decode_body!(BTreeSet<T>);
 }
 
@@ -385,8 +386,8 @@ impl<T: Encode, S> Encoder<HashSet<T, S>> for VecEncoder<T> {
     encode_body_internal_iteration!(HashSet<T, S>);
 }
 #[cfg(feature = "std")]
-impl<'a, T: Decode<'a> + Eq + Hash, S: BuildHasher + Default> Decoder<'a, HashSet<T, S>>
-    for VecDecoder<'a, T>
+impl<'a, T: Decode<'a> + Eq + Hash + Send + Sync, S: BuildHasher + Default>
+    Decoder<'a, HashSet<T, S>> for VecDecoder<'a, T>
 {
     decode_body!(HashSet<T, S>);
 }
@@ -394,14 +395,14 @@ impl<'a, T: Decode<'a> + Eq + Hash, S: BuildHasher + Default> Decoder<'a, HashSe
 impl<T: Encode> Encoder<LinkedList<T>> for VecEncoder<T> {
     encode_body!(LinkedList<T>);
 }
-impl<'a, T: Decode<'a>> Decoder<'a, LinkedList<T>> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, LinkedList<T>> for VecDecoder<'a, T> {
     decode_body!(LinkedList<T>);
 }
 
 impl<T: Encode> Encoder<VecDeque<T>> for VecEncoder<T> {
     encode_body_internal_iteration!(VecDeque<T>); // Internal iteration is 10x faster.
 }
-impl<'a, T: Decode<'a>> Decoder<'a, VecDeque<T>> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, VecDeque<T>> for VecDecoder<'a, T> {
     #[inline(always)]
     fn decode(&mut self) -> VecDeque<T> {
         let v: Vec<T> = self.decode();
