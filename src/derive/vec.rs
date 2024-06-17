@@ -301,7 +301,37 @@ impl<T: Encode> Encoder<Vec<T>> for VecEncoder<T> {
         self.encode_vectored(i.map(Vec::as_slice));
     }
 }
-impl<'a, T: Decode<'a>> Decoder<'a, Vec<T>> for VecDecoder<'a, T> {
+
+impl<'a, T: Decode<'a> + Copy + Send + Sync> Decoder<'a, &'a [T]> for VecDecoder<'a, T> {
+    #[inline(always)]
+    fn decode(&mut self) -> &'a [T] {
+        use crate::fast::NextUnchecked;
+        let length = self.lengths.decode();
+        if length == 0 {
+            return &[];
+        }
+        if let Some(primitive) = self.elements.as_primitive() {
+            let bytes = unsafe { primitive.chunk_unchecked(length) };
+            // TODO: This is will create a unaligned slice
+            // We should allow it only for &'a [T] where T: Unaligned
+            // if we can differentiate it during codegen then we can implement a
+            // BorrowedPrimitiveVecDecoder where we enforce this bound.
+            unsafe { std::mem::transmute(bytes) }
+        } else {
+            self.buf.reserve(length);
+            let spare = self.buf.spare_capacity_mut();
+            for i in 0..length {
+                let out = unsafe { spare.get_unchecked_mut(i) };
+                self.elements.decode_in_place(out);
+            }
+            // # Safety: we've filled the buffer with valid elements.
+            unsafe { self.buf.set_len(length) };
+            unsafe { std::mem::transmute(&self.buf[..]) }
+        }
+    }
+}
+
+impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, Vec<T>> for VecDecoder<'a, T> {
     #[inline(always)]
     fn decode_in_place(&mut self, out: &mut MaybeUninit<Vec<T>>) {
         let length = self.lengths.decode();
