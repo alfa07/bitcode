@@ -80,7 +80,7 @@ macro_rules! impl_t {
         impl<T: Encode> Encode for $t<T> {
             type Encoder = $encoder<T>;
         }
-        impl<'a, T: Decode<'a>> Decode<'a> for $t<T> {
+        impl<'a, T: Decode<'a> + Send + Sync> Decode<'a> for $t<T> {
             type Decoder = $decoder<'a, T>;
         }
     };
@@ -100,7 +100,7 @@ macro_rules! impl_smart_ptr {
             type Decoder = FromDecoder<'a, T>;
         }
 
-        impl<'a, T: Decode<'a>> Decode<'a> for $(::$ptr)*<[T]> {
+        impl<'a, T: Decode<'a> + Send + Sync> Decode<'a> for $(::$ptr)*<[T]> {
             // TODO avoid Vec<T> allocation for Rc<[T]> and Arc<[T]>.
             type Decoder = FromDecoder<'a, Vec<T>>;
         }
@@ -150,13 +150,13 @@ impl<'a> Decode<'a> for &'a str {
 impl<T: Encode> Encode for BinaryHeap<T> {
     type Encoder = VecEncoder<T>;
 }
-impl<'a, T: Decode<'a> + Ord> Decode<'a> for BinaryHeap<T> {
+impl<'a, T: Decode<'a> + Ord + Send + Sync> Decode<'a> for BinaryHeap<T> {
     type Decoder = VecDecoder<'a, T>;
 }
 impl<T: Encode> Encode for BTreeSet<T> {
     type Encoder = VecEncoder<T>;
 }
-impl<'a, T: Decode<'a> + Ord> Decode<'a> for BTreeSet<T> {
+impl<'a, T: Decode<'a> + Ord + Send + Sync> Decode<'a> for BTreeSet<T> {
     type Decoder = VecDecoder<'a, T>;
 }
 #[cfg(feature = "std")]
@@ -164,7 +164,9 @@ impl<T: Encode, S> Encode for HashSet<T, S> {
     type Encoder = VecEncoder<T>;
 }
 #[cfg(feature = "std")]
-impl<'a, T: Decode<'a> + Eq + Hash, S: BuildHasher + Default> Decode<'a> for HashSet<T, S> {
+impl<'a, T: Decode<'a> + Eq + Hash + Send + Sync, S: BuildHasher + Default> Decode<'a>
+    for HashSet<T, S>
+{
     type Decoder = VecDecoder<'a, T>;
 }
 
