@@ -107,6 +107,25 @@ impl<'a, K: Decode<'a> + Ord, V: Decode<'a>> Decoder<'a, BTreeMap<K, V>> for Map
 impl<K: Encode, V: Encode, S> Encoder<HashMap<K, V, S>> for MapEncoder<K, V> {
     encode_body!(HashMap<K, V, S>);
 }
+
+#[cfg(feature = "std")]
+impl<'a, K: Encode, V: Encode, S> Encoder<&'a HashMap<K, V, S>> for MapEncoder<K, V> {
+    #[inline(always)]
+    fn encode(&mut self, map: &&'a HashMap<K, V, S>) {
+        let n = map.len();
+        self.lengths.encode(&n);
+
+        if let Some(n) = NonZeroUsize::new(n) {
+            self.keys.reserve(n);
+            self.values.reserve(n);
+            for (k, v) in map.iter() {
+                self.keys.encode(k);
+                self.values.encode(v);
+            }
+        }
+    }
+}
+
 #[cfg(feature = "std")]
 impl<'a, K: Decode<'a> + Eq + Hash, V: Decode<'a>, S: BuildHasher + Default>
     Decoder<'a, HashMap<K, V, S>> for MapDecoder<'a, K, V>

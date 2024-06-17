@@ -176,6 +176,12 @@ impl<'a, K: Decode<'a> + Ord, V: Decode<'a>> Decode<'a> for BTreeMap<K, V> {
 impl<K: Encode, V: Encode, S> Encode for HashMap<K, V, S> {
     type Encoder = MapEncoder<K, V>;
 }
+
+#[cfg(feature = "std")]
+impl<'a, K: Encode, V: Encode, S> Encode for &'a HashMap<K, V, S> {
+    type Encoder = MapEncoder<K, V>;
+}
+
 #[cfg(feature = "std")]
 impl<'a, K: Decode<'a> + Eq + Hash, V: Decode<'a>, S: BuildHasher + Default> Decode<'a>
     for HashMap<K, V, S>
