@@ -131,6 +131,10 @@ impl<T: Encode> Encode for &[T] {
     type Encoder = VecEncoder<T>;
 }
 
+impl<'a, T: Decode<'a> + Copy + Send + Sync> Decode<'a> for &'a [T] {
+    type Decoder = VecDecoder<'a, T>;
+}
+
 impl Encode for str {
     type Encoder = StrEncoder;
 }
