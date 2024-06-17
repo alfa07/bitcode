@@ -203,7 +203,21 @@ impl<T: Encode> Encoder<[T]> for VecEncoder<T> {
     }
 }
 
-pub struct VecDecoder<'a, T: Decode<'a>> {
+impl<'b, T: Encode> Encoder<&'b [T]> for VecEncoder<T> {
+    #[inline(always)]
+    fn encode(&mut self, t: &&[T]) {
+        self.encode(*t);
+    }
+
+    #[inline(always)]
+    fn encode_vectored<'a>(&mut self, i: impl Iterator<Item = &'a &'b [T]> + Clone)
+    where
+        &'b str: 'a,
+    {
+        self.encode_vectored(i.copied());
+    }
+}
+
     // pub(crate) for arrayvec::ArrayVec.
     pub(crate) lengths: LengthDecoder<'a>,
     pub(crate) elements: T::Decoder,

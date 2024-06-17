@@ -126,6 +126,11 @@ impl<'a, T: Decode<'a>, const N: usize> Decode<'a> for [T; N] {
 impl<T: Encode> Encode for [T] {
     type Encoder = VecEncoder<T>;
 }
+
+impl<T: Encode> Encode for &[T] {
+    type Encoder = VecEncoder<T>;
+}
+
 impl Encode for str {
     type Encoder = StrEncoder;
 }
@@ -162,9 +167,11 @@ impl<'a, T: Decode<'a> + Eq + Hash, S: BuildHasher + Default> Decode<'a> for Has
 impl<K: Encode, V: Encode> Encode for BTreeMap<K, V> {
     type Encoder = MapEncoder<K, V>;
 }
+
 impl<'a, K: Decode<'a> + Ord, V: Decode<'a>> Decode<'a> for BTreeMap<K, V> {
     type Decoder = MapDecoder<'a, K, V>;
 }
+
 #[cfg(feature = "std")]
 impl<K: Encode, V: Encode, S> Encode for HashMap<K, V, S> {
     type Encoder = MapEncoder<K, V>;
