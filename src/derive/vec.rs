@@ -221,6 +221,7 @@ impl<'b, T: Encode> Encoder<&'b [T]> for VecEncoder<T> {
     // pub(crate) for arrayvec::ArrayVec.
     pub(crate) lengths: LengthDecoder<'a>,
     pub(crate) elements: T::Decoder,
+    pub(crate) buf: Vec<T>,
 }
 
 // Can't derive since it would bound T: Default.
@@ -229,6 +230,7 @@ impl<'a, T: Decode<'a>> Default for VecDecoder<'a, T> {
         Self {
             lengths: Default::default(),
             elements: Default::default(),
+            buf: Default::default(),
         }
     }
 }
@@ -236,7 +238,9 @@ impl<'a, T: Decode<'a>> Default for VecDecoder<'a, T> {
 impl<'a, T: Decode<'a>> View<'a> for VecDecoder<'a, T> {
     fn populate(&mut self, input: &mut &'a [u8], length: usize) -> Result<()> {
         self.lengths.populate(input, length)?;
-        self.elements.populate(input, self.lengths.length())
+        self.elements.populate(input, self.lengths.length())?;
+        self.buf.clear();
+        Ok(())
     }
 }
 
