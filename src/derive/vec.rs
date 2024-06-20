@@ -241,6 +241,7 @@ impl<'a, T: Decode<'a> + Send + Sync> View<'a> for VecDecoder<'a, T> {
         self.lengths.populate(input, length)?;
         self.elements.populate(input, self.lengths.length())?;
         self.buf.clear();
+        self.buf.reserve(self.lengths.length());
         Ok(())
     }
 }
@@ -319,15 +320,16 @@ impl<'a, T: Decode<'a> + Copy + Send + Sync> Decoder<'a, &'a [T]> for VecDecoder
             // BorrowedPrimitiveVecDecoder where we enforce this bound.
             unsafe { std::mem::transmute(bytes) }
         } else {
-            self.buf.reserve(length);
+            let len = self.buf.len();
             let spare = self.buf.spare_capacity_mut();
+            assert!(spare.len() >= length);
             for i in 0..length {
                 let out = unsafe { spare.get_unchecked_mut(i) };
                 self.elements.decode_in_place(out);
             }
             // # Safety: we've filled the buffer with valid elements.
-            unsafe { self.buf.set_len(length) };
-            unsafe { std::mem::transmute(&self.buf[..]) }
+            unsafe { self.buf.set_len(len + length) };
+            unsafe { std::mem::transmute(&self.buf[len..]) }
         }
     }
 }
