@@ -184,7 +184,7 @@ impl<K: Encode, V: Encode, S> Encode for HashMap<K, V, S> {
 }
 
 #[cfg(feature = "std")]
-impl<'a, K: Encode, V: Encode, S> Encode for &'a HashMap<K, V, S> {
+impl<K: Encode, V: Encode, S> Encode for &HashMap<K, V, S> {
     type Encoder = MapEncoder<K, V>;
 }
 
@@ -204,7 +204,7 @@ impl<'a, T: Decode<'a>, E: Decode<'a>> Decode<'a> for core::result::Result<T, E>
 impl<T> Encode for PhantomData<T> {
     type Encoder = EmptyCoder;
 }
-impl<'a, T> Decode<'a> for PhantomData<T> {
+impl<T> Decode<'_> for PhantomData<T> {
     type Decoder = EmptyCoder;
 }
 

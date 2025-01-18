@@ -1,4 +1,4 @@
-#![allow(clippy::items_after_test_module, clippy::blocks_in_if_conditions)]
+#![allow(clippy::items_after_test_module, clippy::blocks_in_conditions)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(test, feature(test))]

@@ -42,7 +42,7 @@ impl<const N: usize, const C_STYLE: bool> Default for VariantDecoder<'_, N, C_ST
 }
 
 // C style enums don't require length, so we can skip making a histogram for them.
-impl<'a, const N: usize> VariantDecoder<'a, N, false> {
+impl<const N: usize> VariantDecoder<'_, N, false> {
     pub fn length(&self, variant_index: u8) -> usize {
         self.histogram[variant_index as usize]
     }

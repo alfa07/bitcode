@@ -21,7 +21,7 @@ impl<'a> View<'a> for EmptyCoder {
     }
 }
 
-impl<'a, T> Decoder<'a, PhantomData<T>> for EmptyCoder {
+impl<T> Decoder<'_, PhantomData<T>> for EmptyCoder {
     fn decode(&mut self) -> PhantomData<T> {
         PhantomData
     }

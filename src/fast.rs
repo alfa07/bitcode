@@ -198,7 +198,7 @@ impl<'a, T: Copy, const N: usize> FastArrayVec<'a, T, N> {
     }
 }
 
-impl<'a, T: Copy, const N: usize> PushUnchecked<T> for FastArrayVec<'a, T, N> {
+impl<T: Copy, const N: usize> PushUnchecked<T> for FastArrayVec<'_, T, N> {
     #[inline(always)]
     unsafe fn push_unchecked(&mut self, t: T) {
         core::ptr::write(self.end, t);
@@ -451,14 +451,14 @@ impl<'borrowed, T> Drop for SetOwned<'_, 'borrowed, T> {
         self.0.slice = slice.into();
     }
 }
-impl<'a, T> core::ops::Deref for SetOwned<'a, '_, T> {
+impl<T> core::ops::Deref for SetOwned<'_, '_, T> {
     type Target = Vec<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.0.vec
     }
 }
-impl<'a, T> core::ops::DerefMut for SetOwned<'a, '_, T> {
+impl<T> core::ops::DerefMut for SetOwned<'_, '_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0.vec
     }

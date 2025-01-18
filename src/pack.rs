@@ -388,7 +388,7 @@ fn pack_arithmetic<const FACTOR: usize>(bytes: &[u8], out: &mut Vec<u8>) {
     let divisor = factor_to_divisor::<FACTOR>();
 
     let floor = bytes.len() / divisor;
-    let ceil = (bytes.len() + (divisor - 1)) / divisor;
+    let ceil = bytes.len().div_ceil(divisor);
 
     out.reserve(ceil);
     let packed = &mut out.spare_capacity_mut()[..ceil];
