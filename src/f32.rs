@@ -29,7 +29,10 @@ fn chunks_uninit<A, B>(m: &mut [MaybeUninit<A>]) -> &mut [MaybeUninit<B>] {
     let divisor = size_of::<B>() / size_of::<A>();
     // Safety: `align_of<B> == align_of<A>` and `size_of<B>()` is a multiple of `size_of<A>()`
     unsafe {
-        core::slice::from_raw_parts_mut(m.as_mut_ptr() as *mut MaybeUninit<B>, m.len() / divisor)
+        core::slice::from_raw_parts_mut(
+            m.as_mut_ptr() as *mut MaybeUninit<B>,
+            m.len() / divisor,
+        )
     }
 }
 
@@ -47,9 +50,12 @@ impl Buffer for F32Encoder {
         const CHUNK_SIZE: usize = 4;
         let chunks_len = floats.len() / CHUNK_SIZE;
         let chunks_floats = chunks_len * CHUNK_SIZE;
-        let chunks: &[[u32; CHUNK_SIZE]] = bytemuck::cast_slice(&floats[..chunks_floats]);
-        let mantissa_chunks: &mut [MaybeUninit<[[u8; 4]; 3]>] = chunks_uninit(mantissa);
-        let sign_exp_chunks: &mut [MaybeUninit<[u8; 4]>] = chunks_uninit(sign_exp);
+        let chunks: &[[u32; CHUNK_SIZE]] =
+            bytemuck::cast_slice(&floats[..chunks_floats]);
+        let mantissa_chunks: &mut [MaybeUninit<[[u8; 4]; 3]>] =
+            chunks_uninit(mantissa);
+        let sign_exp_chunks: &mut [MaybeUninit<[u8; 4]>] =
+            chunks_uninit(sign_exp);
 
         for ci in 0..chunks_len {
             let [a, b, c, d] = chunks[ci];
@@ -58,9 +64,16 @@ impl Buffer for F32Encoder {
             let m1 = ((b >> 8) & 0xFF_FF) | (c << 16);
             let m2 = (c >> 16) & 0xFF | (d << 8);
             let mantissa_chunk = &mut mantissa_chunks[ci];
-            mantissa_chunk.write([m0.to_le_bytes(), m1.to_le_bytes(), m2.to_le_bytes()]);
+            mantissa_chunk.write([
+                m0.to_le_bytes(),
+                m1.to_le_bytes(),
+                m2.to_le_bytes(),
+            ]);
 
-            let se = (a >> 24) | ((b >> 24) << 8) | ((c >> 24) << 16) | ((d >> 24) << 24);
+            let se = (a >> 24)
+                | ((b >> 24) << 8)
+                | ((c >> 24) << 16)
+                | ((d >> 24) << 24);
             let sign_exp_chunk = &mut sign_exp_chunks[ci];
             sign_exp_chunk.write(se.to_le_bytes());
         }
@@ -90,12 +103,18 @@ pub struct F32Decoder<'a> {
 
 impl<'a> View<'a> for F32Decoder<'a> {
     fn populate(&mut self, input: &mut &'a [u8], length: usize) -> Result<()> {
-        let total: &[u8] = bytemuck::must_cast_slice(consume_byte_arrays::<4>(input, length)?);
+        let total: &[u8] = bytemuck::must_cast_slice(
+            consume_byte_arrays::<4>(input, length)?,
+        );
         let (mantissa, sign_exp) = total.split_at(length * 3);
         let mantissa: &[[u8; 3]] = bytemuck::cast_slice(mantissa);
         // Equivalent to `mantissa.into()` but satisfies miri when we read extra in decode.
-        self.mantissa =
-            unsafe { FastSlice::from_raw_parts(total.as_ptr() as *const [u8; 3], mantissa.len()) };
+        self.mantissa = unsafe {
+            FastSlice::from_raw_parts(
+                total.as_ptr() as *const [u8; 3],
+                mantissa.len(),
+            )
+        };
         self.sign_exp = sign_exp.into();
         Ok(())
     }
@@ -126,7 +145,8 @@ mod tests {
     fn test() {
         for i in 1..16 {
             let mut rng = ChaCha20Rng::from_seed(Default::default());
-            let floats: Vec<_> = (0..i).map(|_| f32::from_bits(rng.gen())).collect();
+            let floats: Vec<_> =
+                (0..i).map(|_| f32::from_bits(rng.gen())).collect();
 
             let mut encoder = F32Encoder::default();
             encoder.reserve(NonZeroUsize::new(floats.len()).unwrap());
@@ -148,7 +168,6 @@ mod tests {
     fn bench_data() -> Vec<f32> {
         crate::random_data::<f32>(1500001)
     }
-    crate::bench_encode_decode!(f32_vec: Vec<f32>);
 }
 
 #[cfg(test)]
@@ -161,5 +180,4 @@ mod tests2 {
             .map(|n| (0..n / 16).map(|_| 0.0).collect())
             .collect()
     }
-    crate::bench_encode_decode!(f32_vecs: Vec<Vec<f32>>);
 }

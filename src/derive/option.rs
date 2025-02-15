@@ -1,4 +1,6 @@
-use crate::coder::{Buffer, Decoder, Encoder, Result, View, MAX_VECTORED_CHUNK};
+use crate::coder::{
+    Buffer, Decoder, Encoder, Result, View, MAX_VECTORED_CHUNK,
+};
 use crate::derive::variant::{VariantDecoder, VariantEncoder};
 use crate::derive::{Decode, Encode};
 use crate::fast::{FastArrayVec, PushUnchecked};
@@ -14,10 +16,7 @@ pub struct OptionEncoder<T: Encode> {
 // Can't derive since it would bound T: Default.
 impl<T: Encode> Default for OptionEncoder<T> {
     fn default() -> Self {
-        Self {
-            variants: Default::default(),
-            some: Default::default(),
-        }
+        Self { variants: Default::default(), some: Default::default() }
     }
 }
 
@@ -31,15 +30,18 @@ impl<T: Encode> Encoder<Option<T>> for OptionEncoder<T> {
         }
     }
 
-    fn encode_vectored<'a>(&mut self, i: impl Iterator<Item = &'a Option<T>> + Clone)
-    where
+    fn encode_vectored<'a>(
+        &mut self,
+        i: impl Iterator<Item = &'a Option<T>> + Clone,
+    ) where
         Option<T>: 'a,
     {
         // Types with many vectorized encoders benefit from a &[&T] since encode_vectorized is still
         // faster even with the extra indirection. TODO vectored encoder count >= 8 instead of size_of.
         if core::mem::size_of::<T>() >= 64 {
             let mut uninit = MaybeUninit::uninit();
-            let mut refs = FastArrayVec::<_, MAX_VECTORED_CHUNK>::new(&mut uninit);
+            let mut refs =
+                FastArrayVec::<_, MAX_VECTORED_CHUNK>::new(&mut uninit);
 
             for t in i {
                 self.variants.encode(&(t.is_some() as u8));
@@ -57,8 +59,9 @@ impl<T: Encode> Encoder<Option<T>> for OptionEncoder<T> {
             self.some.encode_vectored(refs.iter().copied());
         } else {
             // Safety: encode_vectored guarantees `i.size_hint().1.unwrap() != 0`.
-            let size_hint =
-                unsafe { NonZeroUsize::new(i.size_hint().1.unwrap()).unwrap_unchecked() };
+            let size_hint = unsafe {
+                NonZeroUsize::new(i.size_hint().1.unwrap()).unwrap_unchecked()
+            };
             // size_of::<T>() is small, so we can just assume all elements are Some.
             // This will waste a maximum of `MAX_VECTORED_CHUNK * size_of::<T>()` bytes.
             self.some.reserve(size_hint);
@@ -93,10 +96,7 @@ pub struct OptionDecoder<'a, T: Decode<'a>> {
 // Can't derive since it would bound T: Default.
 impl<'a, T: Decode<'a>> Default for OptionDecoder<'a, T> {
     fn default() -> Self {
-        Self {
-            variants: Default::default(),
-            some: Default::default(),
-        }
+        Self { variants: Default::default(), some: Default::default() }
     }
 }
 
@@ -126,7 +126,6 @@ mod tests {
     fn bench_data() -> Vec<Option<(u64, u32, u8, i32, u64, u32, u8, i32, u64, (u32, u8, i32, u64, u32, u8, i32))>> {
         crate::random_data(1000)
     }
-    crate::bench_encode_decode!(option_vec: Vec<_>);
 }
 
 #[cfg(test)]
@@ -137,5 +136,4 @@ mod tests2 {
     fn bench_data() -> Vec<Option<u16>> {
         crate::random_data(1000)
     }
-    crate::bench_encode_decode!(option_u16_vec: Vec<_>);
 }

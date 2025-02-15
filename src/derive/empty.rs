@@ -35,5 +35,4 @@ mod tests {
     fn bench_data() -> Vec<PhantomData<()>> {
         vec![PhantomData; 100]
     }
-    crate::bench_encode_decode!(phantom_data_vec: Vec<_>);
 }

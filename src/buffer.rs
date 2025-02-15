@@ -38,7 +38,9 @@ pub(crate) struct Registry(Vec<(TypeId, ErasedBox)>);
 impl Registry {
     /// Gets a `&mut T` if it already exists or initializes one with [`Default`].
     #[cfg(test)]
-    pub(crate) fn get<T: Default + Send + Sync + 'static>(&mut self) -> &mut T {
+    pub(crate) fn get<T: Default + Send + Sync + 'static>(
+        &mut self,
+    ) -> &mut T {
         // Safety: T is static.
         unsafe { self.get_non_static::<T>() }
     }
@@ -47,10 +49,16 @@ impl Registry {
     /// # Safety
     /// Lifetimes are the responsibility of the caller. `&'static [u8]` and `&'a [u8]` are the same
     /// type from the perspective of this function.
-    pub(crate) unsafe fn get_non_static<T: Default + Send + Sync>(&mut self) -> &mut T {
+    pub(crate) unsafe fn get_non_static<T: Default + Send + Sync>(
+        &mut self,
+    ) -> &mut T {
         // Use non-generic function to avoid monomorphization.
         #[inline(never)]
-        fn inner(me: &mut Registry, type_id: TypeId, create: fn() -> ErasedBox) -> *mut () {
+        fn inner(
+            me: &mut Registry,
+            type_id: TypeId,
+            create: fn() -> ErasedBox,
+        ) -> *mut () {
             // Use sorted Vec + binary search because we expect fewer insertions than lookups.
             // We could use a HashMap, but that seems like overkill.
             match me.0.binary_search_by_key(&type_id, |(k, _)| *k) {
@@ -100,7 +108,9 @@ fn non_static_type_id<T: ?Sized>() -> TypeId {
     }
     let phantom_data = PhantomData::<T>;
     NonStaticAny::get_type_id(unsafe {
-        core::mem::transmute::<&dyn NonStaticAny, &(dyn NonStaticAny + 'static)>(&phantom_data)
+        core::mem::transmute::<&dyn NonStaticAny, &(dyn NonStaticAny + 'static)>(
+            &phantom_data,
+        )
     })
 }
 
@@ -120,7 +130,8 @@ impl ErasedBox {
     /// Ignores lifetimes so drop may be called after `T`'s lifetime has expired.
     unsafe fn new<T: Send + Sync>(t: T) -> Self {
         let ptr = Box::into_raw(Box::new(t)) as *mut ();
-        let drop: unsafe fn(*mut ()) = core::mem::transmute(drop::<Box<T>> as fn(Box<T>));
+        let drop: unsafe fn(*mut ()) =
+            core::mem::transmute(drop::<Box<T>> as fn(Box<T>));
         Self { ptr, drop }
     }
 }
@@ -135,7 +146,6 @@ impl Drop for ErasedBox {
 #[cfg(test)]
 mod tests {
     use super::{non_static_type_id, Buffer, ErasedBox, Registry};
-    use test::{black_box, Bencher};
 
     #[test]
     fn buffer() {
@@ -166,7 +176,10 @@ mod tests {
     #[test]
     fn type_id() {
         assert_ne!(non_static_type_id::<u8>(), non_static_type_id::<i8>());
-        assert_ne!(non_static_type_id::<()>(), non_static_type_id::<[(); 1]>());
+        assert_ne!(
+            non_static_type_id::<()>(),
+            non_static_type_id::<[(); 1]>()
+        );
         assert_ne!(
             non_static_type_id::<&'static mut [u8]>(),
             non_static_type_id::<&'static [u8]>()
@@ -216,36 +229,4 @@ mod tests {
         }
     }
     type T = [u8; 1];
-
-    #[bench]
-    fn bench_registry1_get(b: &mut Bencher) {
-        let mut r = Registry::default();
-        r.get::<T>();
-        assert_eq!(r.0.len(), 1);
-        b.iter(|| {
-            black_box(*black_box(&mut r).get::<T>());
-        })
-    }
-
-    #[bench]
-    fn bench_registry10_get(b: &mut Bencher) {
-        let mut r = Registry::default();
-        r.get::<T>();
-        register10!(r, 1);
-        assert_eq!(r.0.len(), 10);
-        b.iter(|| {
-            black_box(*black_box(&mut r).get::<T>());
-        })
-    }
-
-    #[bench]
-    fn bench_registry100_get(b: &mut Bencher) {
-        let mut r = Registry::default();
-        r.get::<T>();
-        register10!(r, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-        assert_eq!(r.0.len(), 100);
-        b.iter(|| {
-            black_box(*black_box(&mut r).get::<T>());
-        })
-    }
 }

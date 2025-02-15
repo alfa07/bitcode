@@ -1,4 +1,6 @@
-use crate::coder::{Buffer, Decoder, Encoder, Result, View, MAX_VECTORED_CHUNK};
+use crate::coder::{
+    Buffer, Decoder, Encoder, Result, View, MAX_VECTORED_CHUNK,
+};
 use crate::derive::{Decode, Encode};
 use crate::fast::Unaligned;
 use crate::length::{LengthDecoder, LengthEncoder};
@@ -82,7 +84,11 @@ pub(crate) use unsafe_wild_copy;
 impl<T: Encode> VecEncoder<T> {
     /// Copy fixed size slices. Much faster than memcpy.
     #[inline(never)]
-    fn encode_vectored_max_len<'a, I: Iterator<Item = &'a [T]> + Clone, const N: usize>(
+    fn encode_vectored_max_len<
+        'a,
+        I: Iterator<Item = &'a [T]> + Clone,
+        const N: usize,
+    >(
         &mut self,
         i: I,
     ) where
@@ -115,8 +121,10 @@ impl<T: Encode> VecEncoder<T> {
                     16 if size <= 2 => Self::encode_vectored_max_len::<I, 32>,
                     32 if size <= 1 => Self::encode_vectored_max_len::<I, 64>,
                     _ => Self::encode_vectored_fallback::<I>,
-                } as fn(&mut Self, I));
-                let f: fn(&mut Self, I) = core::mem::transmute(self.vectored_impl);
+                }
+                    as fn(&mut Self, I));
+                let f: fn(&mut Self, I) =
+                    core::mem::transmute(self.vectored_impl);
                 f(self, i);
                 return;
             }
@@ -126,8 +134,10 @@ impl<T: Encode> VecEncoder<T> {
 
     /// Fallback for when length > [`Self::encode_vectored_max_len`]'s max_len.
     #[inline(never)]
-    fn encode_vectored_fallback<'a, I: Iterator<Item = &'a [T]>>(&mut self, i: I)
-    where
+    fn encode_vectored_fallback<'a, I: Iterator<Item = &'a [T]>>(
+        &mut self,
+        i: I,
+    ) where
         T: 'a,
     {
         let primitives = self.elements.as_primitive().unwrap();
@@ -171,7 +181,11 @@ impl<T: Encode> Encoder<[T]> for VecEncoder<T> {
         if self.elements.as_primitive().is_some() {
             /// Convert impl trait to named generic type.
             #[inline(always)]
-            fn inner<'a, T: Encode + 'a, I: Iterator<Item = &'a [T]> + Clone>(
+            fn inner<
+                'a,
+                T: Encode + 'a,
+                I: Iterator<Item = &'a [T]> + Clone,
+            >(
                 me: &mut VecEncoder<T>,
                 i: I,
             ) {
@@ -180,17 +194,20 @@ impl<T: Encode> Encoder<[T]> for VecEncoder<T> {
                     if me.vectored_impl.is_none() {
                         // Use match to avoid "use of generic parameter from outer function".
                         // Start at the pointer size (assumed to be 8 bytes) to not be wasteful.
-                        me.vectored_impl =
-                            core::mem::transmute(match (8 / core::mem::size_of::<T>()).max(1) {
-                                1 => VecEncoder::encode_vectored_max_len::<I, 1>,
-                                2 => VecEncoder::encode_vectored_max_len::<I, 2>,
-                                4 => VecEncoder::encode_vectored_max_len::<I, 4>,
-                                8 => VecEncoder::encode_vectored_max_len::<I, 8>,
-                                _ => unreachable!(),
-                            }
-                                as fn(&mut VecEncoder<T>, I));
+                        me.vectored_impl = core::mem::transmute(match (8
+                            / core::mem::size_of::<T>())
+                        .max(1)
+                        {
+                            1 => VecEncoder::encode_vectored_max_len::<I, 1>,
+                            2 => VecEncoder::encode_vectored_max_len::<I, 2>,
+                            4 => VecEncoder::encode_vectored_max_len::<I, 4>,
+                            8 => VecEncoder::encode_vectored_max_len::<I, 8>,
+                            _ => unreachable!(),
+                        }
+                            as fn(&mut VecEncoder<T>, I));
                     }
-                    let f: fn(&mut VecEncoder<T>, I) = core::mem::transmute(me.vectored_impl);
+                    let f: fn(&mut VecEncoder<T>, I) =
+                        core::mem::transmute(me.vectored_impl);
                     f(me, i);
                 }
             }
@@ -210,8 +227,10 @@ impl<'b, T: Encode> Encoder<&'b [T]> for VecEncoder<T> {
     }
 
     #[inline(always)]
-    fn encode_vectored<'a>(&mut self, i: impl Iterator<Item = &'a &'b [T]> + Clone)
-    where
+    fn encode_vectored<'a>(
+        &mut self,
+        i: impl Iterator<Item = &'a &'b [T]> + Clone,
+    ) where
         &'b str: 'a,
     {
         self.encode_vectored(i.copied());
@@ -296,15 +315,19 @@ impl<T: Encode> Encoder<Vec<T>> for VecEncoder<T> {
     }
 
     #[inline(always)]
-    fn encode_vectored<'a>(&mut self, i: impl Iterator<Item = &'a Vec<T>> + Clone)
-    where
+    fn encode_vectored<'a>(
+        &mut self,
+        i: impl Iterator<Item = &'a Vec<T>> + Clone,
+    ) where
         Vec<T>: 'a,
     {
         self.encode_vectored(i.map(Vec::as_slice));
     }
 }
 
-impl<'a, T: Decode<'a> + Copy + Send + Sync> Decoder<'a, &'a [T]> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Copy + Send + Sync> Decoder<'a, &'a [T]>
+    for VecDecoder<'a, T>
+{
     #[inline(always)]
     fn decode(&mut self) -> &'a [T] {
         use crate::fast::NextUnchecked;
@@ -334,7 +357,9 @@ impl<'a, T: Decode<'a> + Copy + Send + Sync> Decoder<'a, &'a [T]> for VecDecoder
     }
 }
 
-impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, Vec<T>> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, Vec<T>>
+    for VecDecoder<'a, T>
+{
     #[inline(always)]
     fn decode_in_place(&mut self, out: &mut MaybeUninit<Vec<T>>) {
         let length = self.lengths.decode();
@@ -347,9 +372,10 @@ impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, Vec<T>> for VecDecoder<'a, T> 
         let v = out.write(Vec::with_capacity(length));
         if let Some(primitive) = self.elements.as_primitive() {
             unsafe {
-                primitive
-                    .as_ptr()
-                    .copy_to_nonoverlapping(v.as_mut_ptr() as *mut Unaligned<T>, length);
+                primitive.as_ptr().copy_to_nonoverlapping(
+                    v.as_mut_ptr() as *mut Unaligned<T>,
+                    length,
+                );
                 primitive.advance(length);
             }
         } else {
@@ -366,7 +392,9 @@ impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, Vec<T>> for VecDecoder<'a, T> 
 impl<T: Encode> Encoder<BinaryHeap<T>> for VecEncoder<T> {
     encode_body!(BinaryHeap<T>); // When BinaryHeap::as_slice is stable use [T] impl.
 }
-impl<'a, T: Decode<'a> + Ord + Send + Sync> Decoder<'a, BinaryHeap<T>> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Ord + Send + Sync> Decoder<'a, BinaryHeap<T>>
+    for VecDecoder<'a, T>
+{
     #[inline(always)]
     fn decode(&mut self) -> BinaryHeap<T> {
         let v: Vec<T> = self.decode();
@@ -377,7 +405,9 @@ impl<'a, T: Decode<'a> + Ord + Send + Sync> Decoder<'a, BinaryHeap<T>> for VecDe
 impl<T: Encode> Encoder<BTreeSet<T>> for VecEncoder<T> {
     encode_body!(BTreeSet<T>);
 }
-impl<'a, T: Decode<'a> + Ord + Send + Sync> Decoder<'a, BTreeSet<T>> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Ord + Send + Sync> Decoder<'a, BTreeSet<T>>
+    for VecDecoder<'a, T>
+{
     decode_body!(BTreeSet<T>);
 }
 
@@ -388,8 +418,11 @@ impl<T: Encode, S> Encoder<HashSet<T, S>> for VecEncoder<T> {
     encode_body_internal_iteration!(HashSet<T, S>);
 }
 #[cfg(feature = "std")]
-impl<'a, T: Decode<'a> + Eq + Hash + Send + Sync, S: BuildHasher + Default>
-    Decoder<'a, HashSet<T, S>> for VecDecoder<'a, T>
+impl<
+        'a,
+        T: Decode<'a> + Eq + Hash + Send + Sync,
+        S: BuildHasher + Default,
+    > Decoder<'a, HashSet<T, S>> for VecDecoder<'a, T>
 {
     decode_body!(HashSet<T, S>);
 }
@@ -397,49 +430,21 @@ impl<'a, T: Decode<'a> + Eq + Hash + Send + Sync, S: BuildHasher + Default>
 impl<T: Encode> Encoder<LinkedList<T>> for VecEncoder<T> {
     encode_body!(LinkedList<T>);
 }
-impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, LinkedList<T>> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, LinkedList<T>>
+    for VecDecoder<'a, T>
+{
     decode_body!(LinkedList<T>);
 }
 
 impl<T: Encode> Encoder<VecDeque<T>> for VecEncoder<T> {
     encode_body_internal_iteration!(VecDeque<T>); // Internal iteration is 10x faster.
 }
-impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, VecDeque<T>> for VecDecoder<'a, T> {
+impl<'a, T: Decode<'a> + Send + Sync> Decoder<'a, VecDeque<T>>
+    for VecDecoder<'a, T>
+{
     #[inline(always)]
     fn decode(&mut self) -> VecDeque<T> {
         let v: Vec<T> = self.decode();
         v.into()
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use alloc::collections::*;
-    use alloc::vec::Vec;
-
-    fn bench_data<T: FromIterator<u8>>() -> T {
-        (0..=255).collect()
-    }
-
-    crate::bench_encode_decode!(
-        btree_set: BTreeSet<_>,
-        linked_list: LinkedList<_>,
-        vec: Vec<_>,
-        vec_deque: VecDeque<_>
-    );
-    #[cfg(feature = "std")]
-    crate::bench_encode_decode!(hash_set: std::collections::HashSet<_>);
-
-    // BinaryHeap can't use bench_encode_decode because it doesn't implement PartialEq.
-    #[bench]
-    fn bench_binary_heap_decode(b: &mut test::Bencher) {
-        type T = BinaryHeap<u8>;
-        let data: T = bench_data();
-        let encoded = crate::encode(&data);
-        b.iter(|| {
-            let decoded: T = crate::decode::<T>(&encoded).unwrap();
-            debug_assert!(data.iter().eq(decoded.iter()));
-            decoded
-        })
     }
 }

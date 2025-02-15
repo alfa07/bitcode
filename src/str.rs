@@ -36,7 +36,10 @@ impl Encoder<str> for StrEncoder {
     }
 
     #[inline(always)]
-    fn encode_vectored<'a>(&mut self, i: impl Iterator<Item = &'a str> + Clone) {
+    fn encode_vectored<'a>(
+        &mut self,
+        i: impl Iterator<Item = &'a str> + Clone,
+    ) {
         self.0.encode_vectored(i.map(str_as_u8_chars));
     }
 }
@@ -49,8 +52,10 @@ impl<'b> Encoder<&'b str> for StrEncoder {
     }
 
     #[inline(always)]
-    fn encode_vectored<'a>(&mut self, i: impl Iterator<Item = &'a &'b str> + Clone)
-    where
+    fn encode_vectored<'a>(
+        &mut self,
+        i: impl Iterator<Item = &'a &'b str> + Clone,
+    ) where
         &'b str: 'a,
     {
         self.encode_vectored(i.copied());
@@ -64,8 +69,10 @@ impl Encoder<String> for StrEncoder {
     }
 
     #[inline(always)]
-    fn encode_vectored<'a>(&mut self, i: impl Iterator<Item = &'a String> + Clone)
-    where
+    fn encode_vectored<'a>(
+        &mut self,
+        i: impl Iterator<Item = &'a String> + Clone,
+    ) where
         String: 'a,
     {
         self.encode_vectored(i.map(String::as_str));
@@ -122,7 +129,8 @@ impl<'a> View<'a> for StrDecoder<'a> {
 impl<'a> Decoder<'a, &'a str> for StrDecoder<'a> {
     #[inline(always)]
     fn decode(&mut self) -> &'a str {
-        let bytes = unsafe { self.strings.chunk_unchecked(self.lengths.decode()) };
+        let bytes =
+            unsafe { self.strings.chunk_unchecked(self.lengths.decode()) };
         debug_assert!(from_utf8(bytes).is_ok());
 
         // Safety: `bytes` is valid UTF-8 because populate checked that `self.strings` is valid UTF-8
@@ -165,7 +173,6 @@ mod tests {
     use crate::u8_char::U8Char;
     use crate::{decode, encode};
     use alloc::borrow::ToOwned;
-    use test::{black_box, Bencher};
 
     #[test]
     fn utf8_validation() {
@@ -180,7 +187,8 @@ mod tests {
         let end = &full[1..];
 
         // Check is_char_boundary:
-        assert!(decode::<[&str; 2]>(&encode(&[start.to_vec(), end.to_vec()])).is_err());
+        assert!(decode::<[&str; 2]>(&encode(&[start.to_vec(), end.to_vec()]))
+            .is_err());
         assert_eq!(decode::<[&str; 2]>(&encode(&[c, c])).unwrap(), [c, c]);
     }
 
@@ -190,21 +198,10 @@ mod tests {
         assert!(!is_ascii_simd(&[0xFF; 128]));
     }
 
-    #[bench]
-    fn bench_is_ascii(b: &mut Bencher) {
-        b.iter(|| black_box(&[0; 8192]).is_ascii())
-    }
-
-    #[bench]
-    fn bench_is_ascii_simd(b: &mut Bencher) {
-        b.iter(|| is_ascii_simd(black_box(&[0; 8192])))
-    }
-
     type S = &'static str;
     fn bench_data() -> (S, S, S, S, S, S, S) {
         ("a", "b", "c", "d", "e", "f", "g")
     }
-    crate::bench_encode_decode!(str_tuple: (&str, &str, &str, &str, &str, &str, &str));
 }
 
 #[cfg(test)]
@@ -221,5 +218,4 @@ mod tests2 {
             })
             .collect()
     }
-    crate::bench_encode_decode!(str_vec: Vec<String>);
 }

@@ -11,7 +11,9 @@ use crate::derive::{Decode, Encode};
 use crate::f32::{F32Decoder, F32Encoder};
 use crate::int::{CheckedIntDecoder, IntDecoder, IntEncoder};
 use crate::str::{StrDecoder, StrEncoder};
-use alloc::collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque};
+use alloc::collections::{
+    BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque,
+};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
@@ -164,8 +166,11 @@ impl<T: Encode, S> Encode for HashSet<T, S> {
     type Encoder = VecEncoder<T>;
 }
 #[cfg(feature = "std")]
-impl<'a, T: Decode<'a> + Eq + Hash + Send + Sync, S: BuildHasher + Default> Decode<'a>
-    for HashSet<T, S>
+impl<
+        'a,
+        T: Decode<'a> + Eq + Hash + Send + Sync,
+        S: BuildHasher + Default,
+    > Decode<'a> for HashSet<T, S>
 {
     type Decoder = VecDecoder<'a, T>;
 }
@@ -189,8 +194,12 @@ impl<K: Encode, V: Encode, S> Encode for &HashMap<K, V, S> {
 }
 
 #[cfg(feature = "std")]
-impl<'a, K: Decode<'a> + Eq + Hash, V: Decode<'a>, S: BuildHasher + Default> Decode<'a>
-    for HashMap<K, V, S>
+impl<
+        'a,
+        K: Decode<'a> + Eq + Hash,
+        V: Decode<'a>,
+        S: BuildHasher + Default,
+    > Decode<'a> for HashMap<K, V, S>
 {
     type Decoder = MapDecoder<'a, K, V>;
 }
@@ -198,7 +207,9 @@ impl<'a, K: Decode<'a> + Eq + Hash, V: Decode<'a>, S: BuildHasher + Default> Dec
 impl<T: Encode, E: Encode> Encode for core::result::Result<T, E> {
     type Encoder = ResultEncoder<T, E>;
 }
-impl<'a, T: Decode<'a>, E: Decode<'a>> Decode<'a> for core::result::Result<T, E> {
+impl<'a, T: Decode<'a>, E: Decode<'a>> Decode<'a>
+    for core::result::Result<T, E>
+{
     type Decoder = ResultDecoder<'a, T, E>;
 }
 impl<T> Encode for PhantomData<T> {
@@ -331,5 +342,4 @@ mod tests {
             .map(|t: Tuple| (t, None))
             .collect()
     }
-    crate::bench_encode_decode!(tuple_vec: Vec<_>);
 }

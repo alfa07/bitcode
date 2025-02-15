@@ -64,7 +64,11 @@ pub fn pack_bools(bools: &[bool], out: &mut Vec<u8>) {
 }
 
 /// Unpacks 8 bools per byte. `out` will be overwritten with the bools.
-pub fn unpack_bools(input: &mut &[u8], length: usize, out: &mut CowSlice<bool>) -> Result<()> {
+pub fn unpack_bools(
+    input: &mut &[u8],
+    length: usize,
+    out: &mut CowSlice<bool>,
+) -> Result<()> {
     // TODO could borrow if length == 1.
     let mut set_owned = out.set_owned();
     let out: &mut Vec<bool> = &mut set_owned;
@@ -217,12 +221,18 @@ pub fn unpack_bytes_less_than<'a, const N: usize, const HISTOGRAM: usize>(
 
     /// Checks that `unpacked` bytes are less than `N`. All of `unpacked` is assumed to be < `FACTOR`.
     /// `HISTOGRAM` must be 0.
-    fn check_less_than<const N: usize, const HISTOGRAM: usize, const FACTOR: usize>(
+    fn check_less_than<
+        const N: usize,
+        const HISTOGRAM: usize,
+        const FACTOR: usize,
+    >(
         unpacked: &[u8],
     ) -> Result<[usize; HISTOGRAM]> {
         assert!(FACTOR >= N);
         debug_assert!(unpacked.iter().all(|&v| (v as usize) < FACTOR));
-        if FACTOR > N && unpacked.iter().copied().max().unwrap_or(0) as usize >= N {
+        if FACTOR > N
+            && unpacked.iter().copied().max().unwrap_or(0) as usize >= N
+        {
             return invalid_packing();
         }
         Ok(core::array::from_fn(|_| unreachable!("HISTOGRAM not 0")))
@@ -277,7 +287,8 @@ pub fn unpack_bytes_less_than<'a, const N: usize, const HISTOGRAM: usize>(
 
             // Can only `partial_with_garbage % FACTOR` partial_length times as the rest are undefined garbage.
             let partial_length = length - floor * divisor;
-            let partial_with_garbage = original_input[floor..ceil].first().copied();
+            let partial_with_garbage =
+                original_input[floor..ceil].first().copied();
 
             // POPCNT is much faster than histogram.
             let histogram = if FACTOR == 2 {
@@ -286,14 +297,16 @@ pub fn unpack_bytes_less_than<'a, const N: usize, const HISTOGRAM: usize>(
                 let mut one_count = 0;
                 let mut whole = whole;
                 while let Ok(chunk) = consume_byte_arrays(&mut whole, 1) {
-                    one_count += u64::from_ne_bytes(chunk[0]).count_ones() as usize;
+                    one_count +=
+                        u64::from_ne_bytes(chunk[0]).count_ones() as usize;
                 }
                 for &byte in whole {
                     one_count += byte.count_ones() as usize;
                 }
                 if let Some(partial_with_garbage) = partial_with_garbage {
                     // Set undefined garbage bits to zero.
-                    let partial = partial_with_garbage << (divisor - partial_length);
+                    let partial =
+                        partial_with_garbage << (divisor - partial_length);
                     one_count += partial.count_ones() as usize;
                 }
                 Ok(core::array::from_fn(|i| match i {
@@ -307,19 +320,26 @@ pub fn unpack_bytes_less_than<'a, const N: usize, const HISTOGRAM: usize>(
                     let mut histogram = [0; FACTOR];
                     for &v in out.iter() {
                         // Safety: unpack_arithmetic::<FACTOR> returns bytes < FACTOR.
-                        unsafe { *histogram.get_unchecked_mut(v as usize) += 1 };
+                        unsafe {
+                            *histogram.get_unchecked_mut(v as usize) += 1
+                        };
                     }
                     histogram
                 } else {
                     // High throughput path: histogram of packed bytes (one time cost of ~100ns).
-                    let packed_histogram = check_histogram::<256, FACTOR_POW_DIVISOR>(
-                        crate::histogram::histogram(whole),
-                    )?;
-                    let mut histogram: [_; FACTOR] = unpack_histogram(&packed_histogram);
-                    if let Some(mut partial_with_garbage) = partial_with_garbage {
+                    let packed_histogram =
+                        check_histogram::<256, FACTOR_POW_DIVISOR>(
+                            crate::histogram::histogram(whole),
+                        )?;
+                    let mut histogram: [_; FACTOR] =
+                        unpack_histogram(&packed_histogram);
+                    if let Some(mut partial_with_garbage) =
+                        partial_with_garbage
+                    {
                         // .min(divisor) does nothing, it's only improve code gen.
                         for _ in 0..partial_length.min(divisor) {
-                            histogram[partial_with_garbage as usize % FACTOR] += 1;
+                            histogram
+                                [partial_with_garbage as usize % FACTOR] += 1;
                             partial_with_garbage /= FACTOR as u8;
                         }
                     }
@@ -339,11 +359,21 @@ pub fn unpack_bytes_less_than<'a, const N: usize, const HISTOGRAM: usize>(
     let mut set_owned = out.set_owned();
     let out = &mut *set_owned;
     match p {
-        Packing::_16 => unpack_arithmetic_less_than::<N, HISTOGRAM, 16, 256>(input, length, out),
-        Packing::_6 => unpack_arithmetic_less_than::<N, HISTOGRAM, 6, 216>(input, length, out),
-        Packing::_4 => unpack_arithmetic_less_than::<N, HISTOGRAM, 4, 256>(input, length, out),
-        Packing::_3 => unpack_arithmetic_less_than::<N, HISTOGRAM, 3, 243>(input, length, out),
-        Packing::_2 => unpack_arithmetic_less_than::<N, HISTOGRAM, 2, 256>(input, length, out),
+        Packing::_16 => unpack_arithmetic_less_than::<N, HISTOGRAM, 16, 256>(
+            input, length, out,
+        ),
+        Packing::_6 => unpack_arithmetic_less_than::<N, HISTOGRAM, 6, 216>(
+            input, length, out,
+        ),
+        Packing::_4 => unpack_arithmetic_less_than::<N, HISTOGRAM, 4, 256>(
+            input, length, out,
+        ),
+        Packing::_3 => unpack_arithmetic_less_than::<N, HISTOGRAM, 3, 243>(
+            input, length, out,
+        ),
+        Packing::_2 => unpack_arithmetic_less_than::<N, HISTOGRAM, 2, 256>(
+            input, length, out,
+        ),
         Packing::_256 => unreachable!(),
     }
 }
@@ -396,7 +426,9 @@ fn pack_arithmetic<const FACTOR: usize>(bytes: &[u8], out: &mut Vec<u8>) {
     for i in 0..floor {
         unsafe {
             packed.get_unchecked_mut(i).write(if FACTOR == 2 {
-                let chunk = u64::from_le_bytes(*(bytes.as_ptr() as *const [u8; 8]).add(i));
+                let chunk = u64::from_le_bytes(
+                    *(bytes.as_ptr() as *const [u8; 8]).add(i),
+                );
                 // https://stackoverflow.com/a/51750902
                 (0x0102040810204080u64.wrapping_mul(chunk) >> 56) as u8
             } else {
@@ -444,12 +476,17 @@ fn unpack_arithmetic<const FACTOR: usize>(
             if FACTOR == 2 {
                 // https://stackoverflow.com/a/51750902
                 // Can't swap bytes of magic number to avoid swap bytes at runtime because of carries in multiply.
-                let chunk =
-                    ((0x8040201008040201u64.wrapping_mul(packed as u64) & 0x8080808080808080) >> 7)
-                        .swap_bytes();
-                *(unpacked.as_mut_ptr() as *mut [u8; 8]).add(i) = chunk.to_le_bytes();
+                let chunk = ((0x8040201008040201u64
+                    .wrapping_mul(packed as u64)
+                    & 0x8080808080808080)
+                    >> 7)
+                    .swap_bytes();
+                *(unpacked.as_mut_ptr() as *mut [u8; 8]).add(i) =
+                    chunk.to_le_bytes();
             } else {
-                for byte in unpacked.get_unchecked_mut(i * divisor..i * divisor + divisor) {
+                for byte in unpacked
+                    .get_unchecked_mut(i * divisor..i * divisor + divisor)
+                {
                     byte.write(packed % FACTOR as u8);
                     packed /= FACTOR as u8;
                 }
@@ -473,8 +510,6 @@ mod tests {
     use crate::error::err;
     use alloc::borrow::ToOwned;
     use alloc::vec::Vec;
-    use paste::paste;
-    use test::{black_box, Bencher};
 
     fn pack_bytes<T: super::Byte>(bytes: &[T]) -> Vec<u8> {
         let mut out = vec![];
@@ -482,7 +517,10 @@ mod tests {
         out
     }
 
-    fn unpack_bytes<T: super::Byte>(mut packed: &[u8], length: usize) -> Vec<T> {
+    fn unpack_bytes<T: super::Byte>(
+        mut packed: &[u8],
+        length: usize,
+    ) -> Vec<T> {
         let mut out = crate::fast::CowSlice::default();
         super::unpack_bytes(&mut packed, length, &mut out).unwrap();
         assert!(packed.is_empty());
@@ -492,7 +530,10 @@ mod tests {
     #[test]
     fn test_pack_bytes_u8() {
         assert_eq!(pack_bytes(&[1u8, 2, 3, 4, 5, 6, 7]).len(), 5);
-        assert_eq!(pack_bytes(&[201u8, 202, 203, 204, 205, 206, 207]).len(), 6);
+        assert_eq!(
+            pack_bytes(&[201u8, 202, 203, 204, 205, 206, 207]).len(),
+            6
+        );
 
         for max in 0..255u8 {
             for sub in [1, 2, 3, 4, 5, 15, 255] {
@@ -529,11 +570,19 @@ mod tests {
     #[test]
     fn unpack_bytes_errors() {
         assert_eq!(
-            super::unpack_bytes::<u8>(&mut [1].as_slice(), 5, &mut Default::default()),
+            super::unpack_bytes::<u8>(
+                &mut [1].as_slice(),
+                5,
+                &mut Default::default()
+            ),
             err("EOF")
         );
         assert_eq!(
-            super::unpack_bytes::<u8>(&mut [255].as_slice(), 5, &mut Default::default()),
+            super::unpack_bytes::<u8>(
+                &mut [255].as_slice(),
+                5,
+                &mut Default::default()
+            ),
             super::invalid_packing()
         );
     }
@@ -591,7 +640,12 @@ mod tests {
 
             let mut input = packed.as_slice();
             let mut bytes2 = vec![];
-            super::unpack_arithmetic::<FACTOR>(&mut input, bytes.len(), &mut bytes2).unwrap();
+            super::unpack_arithmetic::<FACTOR>(
+                &mut input,
+                bytes.len(),
+                &mut bytes2,
+            )
+            .unwrap();
             assert!(input.is_empty());
             assert_eq!(bytes, bytes2);
         }
@@ -619,44 +673,6 @@ mod tests {
         test::<16>(&[1, 0, 1]);
     }
 
-    fn bench_pack_arithmetic<const FACTOR: usize>(b: &mut Bencher) {
-        let bytes = vec![0; 1000];
-        let mut out = Vec::with_capacity(bytes.len());
-        b.iter(|| {
-            out.clear();
-            super::pack_arithmetic::<FACTOR>(&bytes, black_box(&mut out));
-        });
-    }
-
-    fn bench_unpack_arithmetic<const FACTOR: usize>(b: &mut Bencher) {
-        let unpacked_len = 1000;
-        let packed = pack_arithmetic::<FACTOR>(&vec![0; unpacked_len]);
-        let mut out = Vec::with_capacity(unpacked_len);
-
-        b.iter(|| {
-            let mut input = packed.as_slice();
-            let input = black_box(&mut input);
-            let unpacked_len = black_box(unpacked_len);
-            out.clear();
-            super::unpack_arithmetic::<FACTOR>(input, unpacked_len, black_box(&mut out)).unwrap();
-        });
-    }
-
-    macro_rules! bench_n {
-        ($bench:ident, $($n:literal),+) => {
-            paste! {
-                $(
-                    #[bench]
-                    fn [<$bench $n>](b: &mut Bencher) {
-                        $bench::<$n>(b);
-                    }
-                )+
-            }
-        }
-    }
-    bench_n!(bench_pack_arithmetic, 2, 3, 4, 6, 16);
-    bench_n!(bench_unpack_arithmetic, 2, 3, 4, 6, 16);
-
     fn test_pack_bytes_less_than_n<const N: usize, const FACTOR: usize>() {
         for n in [1, 11, 97, 991, 10007].into_iter().flat_map(|n_prime| {
             let divisor = if FACTOR == 256 {
@@ -664,7 +680,8 @@ mod tests {
             } else {
                 super::factor_to_divisor::<FACTOR>()
             };
-            let n_factor = crate::nightly::div_ceil_usize(n_prime, divisor) * divisor;
+            let n_factor =
+                crate::nightly::div_ceil_usize(n_prime, divisor) * divisor;
             [n_factor, n_prime]
         }) {
             let bytes: Vec<_> = crate::random_data(n)
@@ -700,15 +717,23 @@ mod tests {
 
             let mut input = packed.as_slice();
             let mut unpacked = crate::fast::CowSlice::default();
-            super::unpack_bytes_less_than::<N, 0>(&mut input, bytes.len(), &mut unpacked).unwrap();
+            super::unpack_bytes_less_than::<N, 0>(
+                &mut input,
+                bytes.len(),
+                &mut unpacked,
+            )
+            .unwrap();
             assert!(input.is_empty());
             assert_eq!(unsafe { unpacked.as_slice(bytes.len()) }, bytes);
 
             let mut input = packed.as_slice();
             let mut unpacked = crate::fast::CowSlice::default();
-            let histogram =
-                super::unpack_bytes_less_than::<N, N>(&mut input, bytes.len(), &mut unpacked)
-                    .unwrap();
+            let histogram = super::unpack_bytes_less_than::<N, N>(
+                &mut input,
+                bytes.len(),
+                &mut unpacked,
+            )
+            .unwrap();
             assert!(input.is_empty());
             assert_eq!(unsafe { unpacked.as_slice(bytes.len()) }, bytes);
             assert_eq!(
@@ -733,45 +758,4 @@ mod tests {
     // Test factors and +/- 1 to catch off by 1 errors.
     test_pack_bytes_less_than_n!(2 => 2, 3 => 3, 4 => 4, 5 => 6, 6 => 6, 7 => 16);
     test_pack_bytes_less_than_n!(15 => 16, 16 => 16, 17 => 256, 255 => 256, 256 => 256);
-
-    macro_rules! bench_unpack_histogram {
-        ($($f:literal => $fpd:literal),+) => {
-            $(
-                paste::paste! {
-                    #[bench]
-                    fn [<bench_unpack_histogram $f>](b: &mut Bencher) {
-                        b.iter(|| {
-                            super::unpack_histogram::<$f, $fpd>(black_box(&[0; $fpd]))
-                        });
-                    }
-                }
-            )+
-        }
-    }
-    bench_unpack_histogram!(3 => 243, 4 => 256, 6 => 216, 16 => 256);
-
-    macro_rules! bench_unpack_bytes_less_than {
-        ($($n:literal),+) => {
-            $(
-                paste::paste! {
-                    #[bench]
-                    fn [<bench_unpack_bytes_less_than $n>](b: &mut Bencher) {
-                        let mut out = crate::fast::CowSlice::default();
-                        b.iter(|| {
-                            super::unpack_bytes_less_than::<$n, 0>(black_box(&mut [0].as_slice()), black_box(1), black_box(&mut out)).unwrap();
-                        });
-                    }
-
-                    #[bench]
-                    fn [<bench_unpack_bytes_less_than $n _histogram>](b: &mut Bencher) {
-                        let mut out = crate::fast::CowSlice::default();
-                        b.iter(|| {
-                            super::unpack_bytes_less_than::<$n, $n>(black_box(&mut [0].as_slice()), black_box(1), black_box(&mut out)).unwrap();
-                        });
-                    }
-                }
-            )+
-        }
-    }
-    bench_unpack_bytes_less_than!(2, 3, 4, 6, 16, 256);
 }

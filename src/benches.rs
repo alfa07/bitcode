@@ -4,7 +4,6 @@ use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use test::black_box;
 
 #[cfg(feature = "arrayvec")]
 use arrayvec::{ArrayString, ArrayVec};
@@ -38,7 +37,8 @@ impl Distribution<Data> for rand::distributions::Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Data {
         Data {
             entity: (*[
-                "cow", "sheep", "zombie", "skeleton", "spider", "creeper", "parrot", "bee",
+                "cow", "sheep", "zombie", "skeleton", "spider", "creeper",
+                "parrot", "bee",
             ]
             .choose(rng)
             .unwrap())
@@ -162,12 +162,6 @@ macro_rules! bench {
     }
 }
 
-bench!(serialize, deserialize, bincode);
-#[cfg(feature = "serde")]
-bench!(serialize, deserialize, bitcode);
-#[cfg(feature = "derive")]
-bench!(encode, decode, bitcode);
-
 #[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
@@ -181,56 +175,69 @@ mod tests {
     /// # With String -> ArrayString and Vec -> ArrayVec
     /// cargo test --release --all-features -- --show-output comparison1
     #[test]
-    #[cfg_attr(debug_assertions, ignore = "don't run unless --include-ignored")]
+    #[cfg_attr(
+        debug_assertions,
+        ignore = "don't run unless --include-ignored"
+    )]
     fn comparison1() {
         let data = &random_data(10000);
-        let print_single = |name: &str,
-                            compression: &str,
-                            ser: &dyn Fn(&[Data]) -> Vec<u8>,
-                            de: &dyn Fn(&[u8]) -> Vec<Data>| {
-            let b = ser(&data);
-            // if compression.is_empty() {
-            //     print!("{name} {compression} ");
-            //     println!("{}", String::from_utf8_lossy(&b).replace(char::is_control, "�"));
-            //     // println!("{:?}", b);
-            // }
+        let print_single =
+            |name: &str,
+             compression: &str,
+             ser: &dyn Fn(&[Data]) -> Vec<u8>,
+             de: &dyn Fn(&[u8]) -> Vec<Data>| {
+                let b = ser(&data);
+                // if compression.is_empty() {
+                //     print!("{name} {compression} ");
+                //     println!("{}", String::from_utf8_lossy(&b).replace(char::is_control, "�"));
+                //     // println!("{:?}", b);
+                // }
 
-            fn benchmark_ns(f: impl Fn()) -> usize {
-                const WARMUP: usize = 2;
-                let start = Instant::now();
-                for _ in 0..WARMUP {
-                    f();
-                }
-                let warmup_duration = start.elapsed();
-                let per_second = (WARMUP as f32 / warmup_duration.as_secs_f32()) as usize;
-                let samples: usize = (per_second / 32).max(1);
-                let mut duration = Duration::ZERO;
-                for _ in 0..samples {
+                fn benchmark_ns(f: impl Fn()) -> usize {
+                    const WARMUP: usize = 2;
                     let start = Instant::now();
-                    f();
-                    duration += start.elapsed();
+                    for _ in 0..WARMUP {
+                        f();
+                    }
+                    let warmup_duration = start.elapsed();
+                    let per_second = (WARMUP as f32
+                        / warmup_duration.as_secs_f32())
+                        as usize;
+                    let samples: usize = (per_second / 32).max(1);
+                    let mut duration = Duration::ZERO;
+                    for _ in 0..samples {
+                        let start = Instant::now();
+                        f();
+                        duration += start.elapsed();
+                    }
+                    duration.as_nanos() as usize / samples
                 }
-                duration.as_nanos() as usize / samples
-            }
 
-            let ser_time = benchmark_ns(|| {
-                black_box(ser(black_box(&data)));
-            }) / data.len();
+                let ser_time = benchmark_ns(|| {
+                    black_box(ser(black_box(&data)));
+                }) / data.len();
 
-            let de_time = benchmark_ns(|| {
-                black_box(de(black_box(&b)));
-            }) / data.len();
+                let de_time = benchmark_ns(|| {
+                    black_box(de(black_box(&b)));
+                }) / data.len();
 
-            println!(
+                println!(
                     "| {name:<16} | {compression:<12} | {:<12.1} | {ser_time:<10}     | {de_time:<10}       |",
                     b.len() as f32 / data.len() as f32,
                 );
-        };
+            };
 
         let print_results =
-            |name: &str, ser: fn(&[Data]) -> Vec<u8>, de: fn(&[u8]) -> Vec<Data>| {
+            |name: &str,
+             ser: fn(&[Data]) -> Vec<u8>,
+             de: fn(&[u8]) -> Vec<Data>| {
                 for (compression, encode, decode) in compression::ALGORITHMS {
-                    print_single(name, compression, &|v| encode(&ser(v)), &|v| de(&decode(v)));
+                    print_single(
+                        name,
+                        compression,
+                        &|v| encode(&ser(v)),
+                        &|v| de(&decode(v)),
+                    );
                 }
             };
 
@@ -257,7 +264,11 @@ mod compression {
     use lz4_flex::{compress_prepend_size, decompress_size_prepended};
     use std::io::{Read, Write};
 
-    pub static ALGORITHMS: &[(&str, fn(&[u8]) -> Vec<u8>, fn(&[u8]) -> Vec<u8>)] = &[
+    pub static ALGORITHMS: &[(
+        &str,
+        fn(&[u8]) -> Vec<u8>,
+        fn(&[u8]) -> Vec<u8>,
+    )] = &[
         ("", ToOwned::to_owned, ToOwned::to_owned),
         ("lz4", lz4_encode, lz4_decode),
         ("deflate-fast", deflate_fast_encode, deflate_decode),

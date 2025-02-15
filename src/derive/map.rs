@@ -99,7 +99,9 @@ macro_rules! decode_body {
 impl<K: Encode, V: Encode> Encoder<BTreeMap<K, V>> for MapEncoder<K, V> {
     encode_body!(BTreeMap<K, V>);
 }
-impl<'a, K: Decode<'a> + Ord, V: Decode<'a>> Decoder<'a, BTreeMap<K, V>> for MapDecoder<'a, K, V> {
+impl<'a, K: Decode<'a> + Ord, V: Decode<'a>> Decoder<'a, BTreeMap<K, V>>
+    for MapDecoder<'a, K, V>
+{
     decode_body!(BTreeMap<K, V>);
 }
 
@@ -109,7 +111,9 @@ impl<K: Encode, V: Encode, S> Encoder<HashMap<K, V, S>> for MapEncoder<K, V> {
 }
 
 #[cfg(feature = "std")]
-impl<'a, K: Encode, V: Encode, S> Encoder<&'a HashMap<K, V, S>> for MapEncoder<K, V> {
+impl<'a, K: Encode, V: Encode, S> Encoder<&'a HashMap<K, V, S>>
+    for MapEncoder<K, V>
+{
     #[inline(always)]
     fn encode(&mut self, map: &&'a HashMap<K, V, S>) {
         let n = map.len();
@@ -127,21 +131,19 @@ impl<'a, K: Encode, V: Encode, S> Encoder<&'a HashMap<K, V, S>> for MapEncoder<K
 }
 
 #[cfg(feature = "std")]
-impl<'a, K: Decode<'a> + Eq + Hash, V: Decode<'a>, S: BuildHasher + Default>
-    Decoder<'a, HashMap<K, V, S>> for MapDecoder<'a, K, V>
+impl<
+        'a,
+        K: Decode<'a> + Eq + Hash,
+        V: Decode<'a>,
+        S: BuildHasher + Default,
+    > Decoder<'a, HashMap<K, V, S>> for MapDecoder<'a, K, V>
 {
     decode_body!(HashMap<K, V, S>);
 }
 
 #[cfg(test)]
 mod test {
-    use alloc::collections::BTreeMap;
-
     fn bench_data<T: FromIterator<(u8, u8)>>() -> T {
         (0..=255).map(|k| (k, 0)).collect()
     }
-
-    crate::bench_encode_decode!(btree_map: BTreeMap<_, _>);
-    #[cfg(feature = "std")]
-    crate::bench_encode_decode!(hash_map: std::collections::HashMap<_, _>);
 }

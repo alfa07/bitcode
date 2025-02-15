@@ -83,8 +83,16 @@ impl<'a> Decode<'a> for Duration {
 mod tests {
     #[test]
     fn test() {
-        assert!(crate::decode::<Duration>(&crate::encode(&(u64::MAX, 999_999_999))).is_ok());
-        assert!(crate::decode::<Duration>(&crate::encode(&(u64::MAX, 1_000_000_000))).is_err());
+        assert!(crate::decode::<Duration>(&crate::encode(&(
+            u64::MAX,
+            999_999_999
+        )))
+        .is_ok());
+        assert!(crate::decode::<Duration>(&crate::encode(&(
+            u64::MAX,
+            1_000_000_000
+        )))
+        .is_err());
     }
 
     use alloc::vec::Vec;
@@ -95,5 +103,4 @@ mod tests {
             .map(|(s, n): (_, u32)| Duration::new(s, n % 1_000_000_000))
             .collect()
     }
-    crate::bench_encode_decode!(duration_vec: Vec<_>);
 }

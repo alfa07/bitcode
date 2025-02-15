@@ -1,6 +1,8 @@
 use crate::coder::{Buffer, Decoder, Encoder, Result, View};
 use crate::error::err;
-use crate::fast::{CowSlice, NextUnchecked, PushUnchecked, SliceImpl, Unaligned, VecImpl};
+use crate::fast::{
+    CowSlice, NextUnchecked, PushUnchecked, SliceImpl, Unaligned, VecImpl,
+};
 use crate::pack_ints::{pack_ints, unpack_ints, Int};
 use alloc::vec::Vec;
 use bytemuck::{CheckedBitPattern, NoUninit, Pod};
@@ -102,20 +104,19 @@ where
     }
 }
 
-impl<'a, C: CheckedBitPattern + Send + Sync, I: Int> Decoder<'a, C> for CheckedIntDecoder<'a, C, I>
+impl<'a, C: CheckedBitPattern + Send + Sync, I: Int> Decoder<'a, C>
+    for CheckedIntDecoder<'a, C, I>
 where
     <C as CheckedBitPattern>::Bits: Pod,
 {
     #[inline(always)]
     fn as_primitive(&mut self) -> Option<&mut SliceImpl<Unaligned<C>>> {
-        self.0
-            .as_primitive()
-            .map(|p: &mut SliceImpl<'_, Unaligned<I>>| {
-                let p = p.cast::<Unaligned<C::Bits>>();
-                // Safety: `Unaligned<C::Bits>` and `Unaligned<C>` have the same layout and populate
-                // ensured C's bit pattern is valid.
-                unsafe { core::mem::transmute(p) }
-            })
+        self.0.as_primitive().map(|p: &mut SliceImpl<'_, Unaligned<I>>| {
+            let p = p.cast::<Unaligned<C::Bits>>();
+            // Safety: `Unaligned<C::Bits>` and `Unaligned<C>` have the same layout and populate
+            // ensured C's bit pattern is valid.
+            unsafe { core::mem::transmute(p) }
+        })
     }
 
     #[inline(always)]
@@ -148,7 +149,6 @@ mod tests {
     fn bench_data() -> Vec<u16> {
         crate::random_data(1000)
     }
-    crate::bench_encode_decode!(u16_vec: Vec<_>);
 }
 
 #[cfg(test)]
@@ -161,5 +161,4 @@ mod test2 {
             .map(|n| (0..n / 54).map(|_| n as u16 * 255).collect())
             .collect()
     }
-    crate::bench_encode_decode!(u16_vecs: Vec<Vec<_>>);
 }

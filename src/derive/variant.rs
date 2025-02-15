@@ -32,7 +32,9 @@ pub struct VariantDecoder<'a, const N: usize, const C_STYLE: bool> {
 }
 
 // [(); N] doesn't implement Default.
-impl<const N: usize, const C_STYLE: bool> Default for VariantDecoder<'_, N, C_STYLE> {
+impl<const N: usize, const C_STYLE: bool> Default
+    for VariantDecoder<'_, N, C_STYLE>
+{
     fn default() -> Self {
         Self {
             variants: Default::default(),
@@ -48,19 +50,27 @@ impl<const N: usize> VariantDecoder<'_, N, false> {
     }
 }
 
-impl<'a, const N: usize, const C_STYLE: bool> View<'a> for VariantDecoder<'a, N, C_STYLE> {
+impl<'a, const N: usize, const C_STYLE: bool> View<'a>
+    for VariantDecoder<'a, N, C_STYLE>
+{
     fn populate(&mut self, input: &mut &'a [u8], length: usize) -> Result<()> {
         assert!(N >= 2);
         if C_STYLE {
             unpack_bytes_less_than::<N, 0>(input, length, &mut self.variants)?;
         } else {
-            self.histogram = unpack_bytes_less_than::<N, N>(input, length, &mut self.variants)?;
+            self.histogram = unpack_bytes_less_than::<N, N>(
+                input,
+                length,
+                &mut self.variants,
+            )?;
         }
         Ok(())
     }
 }
 
-impl<'a, const N: usize, const C_STYLE: bool> Decoder<'a, u8> for VariantDecoder<'a, N, C_STYLE> {
+impl<'a, const N: usize, const C_STYLE: bool> Decoder<'a, u8>
+    for VariantDecoder<'a, N, C_STYLE>
+{
     // Guaranteed to output numbers less than N.
     #[inline(always)]
     fn decode(&mut self) -> u8 {
@@ -136,5 +146,4 @@ mod tests {
             .map(|v| if v { BoolEnum::True } else { BoolEnum::False })
             .collect()
     }
-    crate::bench_encode_decode!(bool_enum_vec: Vec<_>);
 }

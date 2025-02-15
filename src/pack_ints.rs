@@ -22,7 +22,8 @@ enum Packing {
 impl Packing {
     fn new<T: SizedUInt>(max: T) -> Self {
         let max: u128 = max.try_into().unwrap_or_else(|_| unreachable!()); // From<usize> isn't implemented for u128.
-        #[allow(clippy::match_overlapping_arm)] // Just make sure not to reorder them.
+        #[allow(clippy::match_overlapping_arm)]
+        // Just make sure not to reorder them.
         match max {
             ..=0xFF => Self::_8,
             ..=0xFF_FF => Self::_16,
@@ -35,7 +36,9 @@ impl Packing {
     fn write<T: SizedUInt>(self, out: &mut Vec<u8>, offset_by_min: bool) {
         // Encoded in such a way such that 0 is no packing and higher numbers are smaller packing.
         // Also makes no packing with offset_by_min = true is unrepresentable.
-        out.push((self as u8 - Self::new(T::MAX) as u8) * 2 - offset_by_min as u8);
+        out.push(
+            (self as u8 - Self::new(T::MAX) as u8) * 2 - offset_by_min as u8,
+        );
     }
 
     fn read<T: SizedUInt>(input: &mut &[u8]) -> Result<(Self, bool)> {
@@ -59,7 +62,9 @@ fn usize_too_big() -> Error {
     error("encountered a isize/usize with more than 32 bits on a 32 bit platform")
 }
 
-pub trait Int: Copy + core::fmt::Debug + Default + Ord + Pod + Send + Sized + Sync {
+pub trait Int:
+    Copy + core::fmt::Debug + Default + Ord + Pod + Send + Sized + Sync
+{
     // Unaligned native endian. TODO could be aligned on big endian since we always have to copy.
     type Une: Pod + Default + Send + Sync;
     type Int: SizedInt;
@@ -157,10 +162,22 @@ pub trait SizedUInt: SizedInt + TryInto<u128> {
     fn pack32(v: &[Self], out: &mut Vec<u8>);
     fn pack16(v: &[Self], out: &mut Vec<u8>);
     fn pack8(v: &mut [Self], out: &mut Vec<u8>);
-    fn unpack128<'a>(v: &'a [[u8; 16]], out: &mut CowSlice<'a, Self::Une>) -> Result<()>;
-    fn unpack64<'a>(v: &'a [[u8; 8]], out: &mut CowSlice<'a, Self::Une>) -> Result<()>;
-    fn unpack32<'a>(v: &'a [[u8; 4]], out: &mut CowSlice<'a, Self::Une>) -> Result<()>;
-    fn unpack16<'a>(v: &'a [[u8; 2]], out: &mut CowSlice<'a, Self::Une>) -> Result<()>;
+    fn unpack128<'a>(
+        v: &'a [[u8; 16]],
+        out: &mut CowSlice<'a, Self::Une>,
+    ) -> Result<()>;
+    fn unpack64<'a>(
+        v: &'a [[u8; 8]],
+        out: &mut CowSlice<'a, Self::Une>,
+    ) -> Result<()>;
+    fn unpack32<'a>(
+        v: &'a [[u8; 4]],
+        out: &mut CowSlice<'a, Self::Une>,
+    ) -> Result<()>;
+    fn unpack16<'a>(
+        v: &'a [[u8; 2]],
+        out: &mut CowSlice<'a, Self::Une>,
+    ) -> Result<()>;
     fn unpack8<'a>(
         input: &mut &'a [u8],
         length: usize,
@@ -191,7 +208,10 @@ macro_rules! impl_unreachable {
         fn $pack(_: &[Self], _: &mut Vec<u8>) {
             unreachable!(); // Packings that increase size won't be chosen.
         }
-        fn $unpack<'a>(_: &'a [<$t as Int>::Une], _: &mut CowSlice<'a, Self::Une>) -> Result<()> {
+        fn $unpack<'a>(
+            _: &'a [<$t as Int>::Une],
+            _: &mut CowSlice<'a, Self::Une>,
+        ) -> Result<()> {
             unreachable!(); // Packings that increase size are unrepresentable.
         }
     };
@@ -206,13 +226,17 @@ macro_rules! impl_self {
                 out.extend(v.iter().flat_map(|&v| v.to_le_bytes()));
             }
         }
-        fn $unpack<'a>(v: &'a [Self::Une], out: &mut CowSlice<'a, Self::Une>) -> Result<()> {
+        fn $unpack<'a>(
+            v: &'a [Self::Une],
+            out: &mut CowSlice<'a, Self::Une>,
+        ) -> Result<()> {
             // If we're little endian we can borrow the input since we encode in little endian.
             if cfg!(target_endian = "little") {
                 out.set_borrowed(v);
             } else {
-                out.set_owned()
-                    .extend(v.iter().map(|&v| Self::from_le_bytes(v).to_ne_bytes()));
+                out.set_owned().extend(
+                    v.iter().map(|&v| Self::from_le_bytes(v).to_ne_bytes()),
+                );
             }
             Ok(())
         }
@@ -223,7 +247,10 @@ macro_rules! impl_smaller {
         fn $pack(v: &[Self], out: &mut Vec<u8>) {
             out.extend(v.iter().flat_map(|&v| (v as $t).to_le_bytes()))
         }
-        fn $unpack<'a>(v: &'a [<$t as Int>::Une], out: &mut CowSlice<'a, Self::Une>) -> Result<()> {
+        fn $unpack<'a>(
+            v: &'a [<$t as Int>::Une],
+            out: &mut CowSlice<'a, Self::Une>,
+        ) -> Result<()> {
             out.set_owned().extend(
                 v.iter()
                     .map(|&v| (<$t>::from_le_bytes(v) as Self).to_ne_bytes()),
@@ -260,10 +287,15 @@ macro_rules! impl_u8 {
                 pack_bytes(bytes, out);
             })
         }
-        fn unpack8(input: &mut &[u8], length: usize, out: &mut CowSlice<Self::Une>) -> Result<()> {
+        fn unpack8(
+            input: &mut &[u8],
+            length: usize,
+            out: &mut CowSlice<Self::Une>,
+        ) -> Result<()> {
             with_scratch(|allocation| {
                 // unpack_bytes might not result in a copy, but if it does we want to avoid an allocation.
-                let mut bytes = CowSlice::with_allocation(core::mem::take(allocation));
+                let mut bytes =
+                    CowSlice::with_allocation(core::mem::take(allocation));
                 unpack_bytes(input, length, &mut bytes)?;
                 // Safety: unpack_bytes ensures bytes has length of `length`.
                 let slice = unsafe { bytes.as_slice(length) };
@@ -374,7 +406,9 @@ fn pack_ints_sized<T: SizedInt>(ints: &mut [T], out: &mut Vec<u8>) {
 
         // Only have to check packing(max - min) since it's always as good as packing(max).
         let none = Packing::new(T::Unsigned::MAX);
-        if Packing::new(max.to_unsigned().wrapping_sub(min.to_unsigned())) == none {
+        if Packing::new(max.to_unsigned().wrapping_sub(min.to_unsigned()))
+            == none
+        {
             none.write::<T::Unsigned>(out, false);
             (none, None)
         } else {
@@ -392,7 +426,8 @@ fn pack_ints_sized<T: SizedInt>(ints: &mut [T], out: &mut Vec<u8>) {
         }
     };
     let ints = bytemuck::must_cast_slice_mut(ints);
-    let min_max = min_max.map(|(min, max)| (min.to_unsigned(), max.to_unsigned()));
+    let min_max =
+        min_max.map(|(min, max)| (min.to_unsigned(), max.to_unsigned()));
     pack_ints_sized_unsigned::<T::Unsigned>(ints, out, basic_packing, min_max);
 }
 
@@ -408,7 +443,7 @@ fn pack_ints_sized_unsigned<T: SizedUInt>(
         let offset_packing = Packing::new(max.wrapping_sub(min));
         if offset_packing > basic_packing && ints.len() > 5 {
             for b in ints.iter_mut() {
-                *b = b.wrapping_sub(min);
+                *b = (*b).wrapping_sub(min);
             }
             offset_packing.write::<T>(out, true);
             T::write(min, out);
@@ -464,7 +499,9 @@ fn unpack_ints_sized_unsigned<'a, T: SizedUInt>(
     };
 
     match p {
-        Packing::_128 => T::unpack128(consume_byte_arrays(input, length)?, out),
+        Packing::_128 => {
+            T::unpack128(consume_byte_arrays(input, length)?, out)
+        }
         Packing::_64 => T::unpack64(consume_byte_arrays(input, length)?, out),
         Packing::_32 => T::unpack32(consume_byte_arrays(input, length)?, out),
         Packing::_16 => T::unpack16(consume_byte_arrays(input, length)?, out),
@@ -487,7 +524,6 @@ mod tests {
     use crate::error::err;
     use alloc::borrow::ToOwned;
     use alloc::vec::Vec;
-    use test::{black_box, Bencher};
 
     pub fn pack_ints<T: Int>(ints: &[T]) -> Vec<u8> {
         let mut out = vec![];
@@ -495,7 +531,10 @@ mod tests {
         assert_eq!(ints, unpack_ints(&out, ints.len()).unwrap());
         out
     }
-    pub fn unpack_ints<T: Int>(mut packed: &[u8], length: usize) -> Result<Vec<T>> {
+    pub fn unpack_ints<T: Int>(
+        mut packed: &[u8],
+        length: usize,
+    ) -> Result<Vec<T>> {
         let mut out = CowSlice::default();
         super::unpack_ints::<T>(&mut packed, length, &mut out)?;
         assert!(packed.is_empty());
@@ -563,11 +602,19 @@ mod tests {
     #[test]
     fn unpack_ints_errors() {
         assert_eq!(
-            super::unpack_ints::<u16>(&mut [1].as_slice(), 5, &mut Default::default()),
+            super::unpack_ints::<u16>(
+                &mut [1].as_slice(),
+                5,
+                &mut Default::default()
+            ),
             err("EOF")
         );
         assert_eq!(
-            super::unpack_ints::<u16>(&mut [255].as_slice(), 5, &mut Default::default()),
+            super::unpack_ints::<u16>(
+                &mut [255].as_slice(),
+                5,
+                &mut Default::default()
+            ),
             super::invalid_packing()
         );
     }
@@ -579,7 +626,8 @@ mod tests {
         #[cfg(feature = "std")]
         {
             let packing = out[0];
-            let size = 100.0 * out.len() as f32 / core::mem::size_of_val(ints) as f32;
+            let size =
+                100.0 * out.len() as f32 / core::mem::size_of_val(ints) as f32;
             println!("{packing} {size:>5.1}%");
         }
         out
@@ -637,94 +685,4 @@ mod tests {
     test!(test_i064, i64);
     test!(test_i128, i128);
     test!(test_isize, isize);
-
-    fn bench_pack_ints<T: Int>(b: &mut Bencher, src: &[T]) {
-        let mut ints = src.to_vec();
-        let mut out = Vec::with_capacity(core::mem::size_of_val(src) + 10);
-        let starting_cap = out.capacity();
-        b.iter(|| {
-            ints.copy_from_slice(&src);
-            out.clear();
-            super::pack_ints(black_box(&mut ints), black_box(&mut out));
-        });
-        assert_eq!(out.capacity(), starting_cap);
-    }
-
-    fn bench_unpack_ints<T: Int>(b: &mut Bencher, src: &[T]) {
-        let packed = pack_ints(&mut src.to_vec());
-        let mut out = CowSlice::with_allocation(Vec::<T::Une>::with_capacity(src.len()));
-        b.iter(|| {
-            let length = src.len();
-            super::unpack_ints::<T>(
-                black_box(&mut packed.as_slice()),
-                length,
-                black_box(&mut out),
-            )
-            .unwrap();
-            debug_assert_eq!(
-                unsafe { out.as_slice(length) }
-                    .iter()
-                    .copied()
-                    .map(T::from_unaligned)
-                    .collect::<Vec<_>>(),
-                src
-            );
-        });
-    }
-
-    macro_rules! bench {
-        ($name:ident, $t:ident) => {
-            paste::paste! {
-                #[bench]
-                fn [<bench_pack_ $name _zero>](b: &mut Bencher) {
-                    bench_pack_ints::<$t>(b, &[0; 1000]);
-                }
-
-                #[bench]
-                fn [<bench_pack_ $name _max>](b: &mut Bencher) {
-                    bench_pack_ints::<$t>(b, &[$t::MAX; 1000]);
-                }
-
-                #[bench]
-                fn [<bench_pack_ $name _random>](b: &mut Bencher) {
-                    bench_pack_ints::<$t>(b, &crate::random_data(1000));
-                }
-
-                #[bench]
-                fn [<bench_pack_ $name _no_pack>](b: &mut Bencher) {
-                    let src = vec![$t::MIN; 1000];
-                    let mut ints = src.clone();
-                    let mut out: Vec<u8> = Vec::with_capacity(core::mem::size_of_val(&ints) + 10);
-                    b.iter(|| {
-                        ints.copy_from_slice(&src);
-                        let input = black_box(&mut ints);
-                        out.clear();
-                        let out = black_box(&mut out);
-                        out.extend_from_slice(bytemuck::must_cast_slice(&input));
-                    });
-                }
-
-                #[bench]
-                fn [<bench_unpack_ $name _zero>](b: &mut Bencher) {
-                    bench_unpack_ints::<$t>(b, &[0; 1000]);
-                }
-
-                #[bench]
-                fn [<bench_unpack_ $name _max>](b: &mut Bencher) {
-                    bench_unpack_ints::<$t>(b, &[$t::MAX; 1000]);
-                }
-
-                #[bench]
-                fn [<bench_unpack_ $name _random>](b: &mut Bencher) {
-                    bench_unpack_ints::<$t>(b, &crate::random_data(1000));
-                }
-            }
-        };
-    }
-    bench!(u008, u8);
-    bench!(u016, u16);
-    bench!(u032, u32);
-    bench!(u064, u64);
-    bench!(u128, u128);
-    bench!(usize, usize);
 }

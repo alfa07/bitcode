@@ -1,5 +1,7 @@
 use crate::coder::{Buffer, Decoder, Encoder, Result, View};
-use crate::fast::{CowSlice, NextUnchecked, PushUnchecked, SliceImpl, Unaligned, VecImpl};
+use crate::fast::{
+    CowSlice, NextUnchecked, PushUnchecked, SliceImpl, Unaligned, VecImpl,
+};
 use crate::pack::{pack_bools, unpack_bools};
 use alloc::vec::Vec;
 use core::num::NonZeroUsize;
@@ -61,7 +63,6 @@ mod test {
     fn bench_data() -> Vec<bool> {
         (0..=1000).map(|_| false).collect()
     }
-    crate::bench_encode_decode!(bool_vec: Vec<_>);
 }
 
 #[cfg(test)]
@@ -77,5 +78,4 @@ mod test2 {
             })
             .collect()
     }
-    crate::bench_encode_decode!(bool_vecs: Vec<Vec<_>>);
 }

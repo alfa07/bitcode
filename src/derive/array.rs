@@ -52,9 +52,7 @@ impl<T: Encode, const N: usize> Buffer for ArrayEncoder<T, N> {
             return; // self.0.reserve takes NonZeroUsize and `additional * N == 0`.
         }
         self.0.reserve(
-            additional
-                .checked_mul(NonZeroUsize::new(N).unwrap())
-                .unwrap(),
+            additional.checked_mul(NonZeroUsize::new(N).unwrap()).unwrap(),
         );
     }
 }
@@ -75,7 +73,9 @@ impl<'a, T: Decode<'a>, const N: usize> View<'a> for ArrayDecoder<'a, T, N> {
     }
 }
 
-impl<'a, T: Decode<'a>, const N: usize> Decoder<'a, [T; N]> for ArrayDecoder<'a, T, N> {
+impl<'a, T: Decode<'a>, const N: usize> Decoder<'a, [T; N]>
+    for ArrayDecoder<'a, T, N>
+{
     fn as_primitive(&mut self) -> Option<&mut FastSlice<Unaligned<[T; N]>>> {
         self.0.as_primitive().map(|s| {
             // Safety: FastSlice doesn't have a length unlike slice, so casting to FastSlice<[T; N]>
@@ -87,7 +87,8 @@ impl<'a, T: Decode<'a>, const N: usize> Decoder<'a, [T; N]> for ArrayDecoder<'a,
     #[inline(always)]
     fn decode_in_place(&mut self, out: &mut MaybeUninit<[T; N]>) {
         // Safety: Equivalent to nightly MaybeUninit::transpose.
-        let out = unsafe { &mut *(out.as_mut_ptr() as *mut [MaybeUninit<T>; N]) };
+        let out =
+            unsafe { &mut *(out.as_mut_ptr() as *mut [MaybeUninit<T>; N]) };
         for out in out {
             self.0.decode_in_place(out);
         }
@@ -120,12 +121,4 @@ mod tests {
         let bytes = encoder.collect();
         assert_eq!(decode::<Vec<[u8; N]>>(&bytes), err("length overflow"));
     }
-
-    fn bench_data() -> Vec<Vec<[u8; 3]>> {
-        crate::random_data::<u8>(125)
-            .into_iter()
-            .map(|n| (0..n / 16).map(|_| [0, 0, 255]).collect())
-            .collect()
-    }
-    crate::bench_encode_decode!(u8_array_vecs: Vec<Vec<[u8; 3]>>);
 }

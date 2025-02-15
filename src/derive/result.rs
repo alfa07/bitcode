@@ -72,14 +72,20 @@ impl<'a, T: Decode<'a>, E: Decode<'a>> Default for ResultDecoder<'a, T, E> {
 }
 
 impl<'a, T: Decode<'a>, E: Decode<'a>> View<'a> for ResultDecoder<'a, T, E> {
-    fn populate(&mut self, input: &mut &'a [u8], length: usize) -> Result<(), Error> {
+    fn populate(
+        &mut self,
+        input: &mut &'a [u8],
+        length: usize,
+    ) -> Result<(), Error> {
         self.variants.populate(input, length)?;
         self.ok.populate(input, self.variants.length(0))?;
         self.err.populate(input, self.variants.length(1))
     }
 }
 
-impl<'a, T: Decode<'a>, E: Decode<'a>> Decoder<'a, Result<T, E>> for ResultDecoder<'a, T, E> {
+impl<'a, T: Decode<'a>, E: Decode<'a>> Decoder<'a, Result<T, E>>
+    for ResultDecoder<'a, T, E>
+{
     #[inline(always)]
     fn decode_in_place(&mut self, out: &mut MaybeUninit<Result<T, E>>) {
         if self.variants.decode() == 0 {
@@ -100,5 +106,4 @@ mod tests {
             .map(|(is_ok, ok, err)| if is_ok { Ok(ok) } else { Err(err) })
             .collect()
     }
-    crate::bench_encode_decode!(result_vec: Vec<_>);
 }

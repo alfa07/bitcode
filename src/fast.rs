@@ -55,12 +55,7 @@ impl<T> From<Vec<T>> for FastVec<T> {
         let end = unsafe { start.add(vec.len()) };
         let capacity = unsafe { start.add(vec.capacity()) };
         core::mem::forget(vec);
-        Self {
-            start,
-            end,
-            capacity,
-            _spooky: Default::default(),
-        }
+        Self { start, end, capacity, _spooky: Default::default() }
     }
 }
 
@@ -184,11 +179,7 @@ impl<'a, T: Copy, const N: usize> FastArrayVec<'a, T, N> {
     #[inline(always)]
     pub fn new(uninit: &'a mut MaybeUninit<[T; N]>) -> Self {
         let start = uninit.as_mut_ptr() as *mut T;
-        Self {
-            start,
-            end: start,
-            _spooky: PhantomData,
-        }
+        Self { start, end: start, _spooky: PhantomData }
     }
 
     #[inline(always)]
@@ -341,10 +332,7 @@ impl<'borrowed, T> CowSlice<'borrowed, T> {
     /// Creates a [`CowSlice`] with an allocation of `vec`. None of `vec`'s elements are kept.
     pub fn with_allocation(mut vec: Vec<T>) -> Self {
         vec.clear();
-        Self {
-            slice: [].as_slice().into(),
-            vec,
-        }
+        Self { slice: [].as_slice().into(), vec }
     }
 
     /// Converts a [`CowSlice`] into its internal allocation. The [`Vec<T>`] is empty.
@@ -373,7 +361,8 @@ impl<'borrowed, T> CowSlice<'borrowed, T> {
         'borrowed: 'me,
     {
         // Safety: 'me is min of 'borrowed and &'me self because of `where 'borrowed: 'me`.
-        let slice: &'me SliceImpl<'me, T> = unsafe { core::mem::transmute(&self.slice) };
+        let slice: &'me SliceImpl<'me, T> =
+            unsafe { core::mem::transmute(&self.slice) };
         slice
     }
 
@@ -385,7 +374,8 @@ impl<'borrowed, T> CowSlice<'borrowed, T> {
         'borrowed: 'me,
     {
         // Safety: 'me is min of 'borrowed and &'me self because of `where 'borrowed: 'me`.
-        let slice: &'me mut SliceImpl<'me, T> = unsafe { core::mem::transmute(&mut self.slice) };
+        let slice: &'me mut SliceImpl<'me, T> =
+            unsafe { core::mem::transmute(&mut self.slice) };
         slice
     }
 
@@ -415,15 +405,13 @@ impl<'borrowed, T> CowSlice<'borrowed, T> {
     ///
     /// If self is not owned (set_owned hasn't been called).
     pub fn mut_owned<R>(&mut self, f: impl FnOnce(&mut Vec<T>) -> R) -> R {
-        assert!(
-            core::ptr::eq(self.slice.ptr, self.vec.as_ptr()),
-            "not owned"
-        );
+        assert!(core::ptr::eq(self.slice.ptr, self.vec.as_ptr()), "not owned");
         // Clear self.slice before mutating self.vec, so we don't point to freed memory.
         self.slice = [].as_slice().into();
         let ret = f(&mut self.vec);
         // Safety: We clear `CowSlice.slice` whenever we mutate `CowSlice.vec`.
-        let slice: &'borrowed [T] = unsafe { core::mem::transmute(self.vec.as_slice()) };
+        let slice: &'borrowed [T] =
+            unsafe { core::mem::transmute(self.vec.as_slice()) };
         self.slice = slice.into();
         ret
     }
@@ -447,7 +435,8 @@ pub struct SetOwned<'a, 'borrowed, T>(&'a mut CowSlice<'borrowed, T>);
 impl<'borrowed, T> Drop for SetOwned<'_, 'borrowed, T> {
     fn drop(&mut self) {
         // Safety: We clear `CowSlice.slice` whenever we mutate `CowSlice.vec`.
-        let slice: &'borrowed [T] = unsafe { core::mem::transmute(self.0.vec.as_slice()) };
+        let slice: &'borrowed [T] =
+            unsafe { core::mem::transmute(self.0.vec.as_slice()) };
         self.0.slice = slice.into();
     }
 }
@@ -475,7 +464,6 @@ unsafe impl<T: bytemuck::Pod> bytemuck::Pod for Unaligned<T> {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test::{black_box, Bencher};
 
     #[test]
     fn test_as_slice() {
@@ -486,110 +474,5 @@ mod tests {
             vec.push_unchecked(2);
         }
         assert_eq!(vec.as_slice(), [1, 2]);
-    }
-
-    const N: usize = 1000;
-    type VecT = Vec<u32>;
-
-    #[bench]
-    fn bench_next_unchecked(b: &mut Bencher) {
-        let src: VecT = vec![0; N];
-        b.iter(|| {
-            let mut slice = src.as_slice();
-            for _ in 0..black_box(N) {
-                unsafe { black_box(black_box(&mut slice).next_unchecked()) };
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_next_unchecked_fast(b: &mut Bencher) {
-        let src: VecT = vec![0; N];
-        b.iter(|| {
-            let mut fast_slice = FastSlice::from(src.as_slice());
-            for _ in 0..black_box(N) {
-                unsafe { black_box(black_box(&mut fast_slice).next_unchecked()) };
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_push(b: &mut Bencher) {
-        let mut buffer = VecT::with_capacity(N);
-        b.iter(|| {
-            buffer.clear();
-            let vec = black_box(&mut buffer);
-            for _ in 0..black_box(N) {
-                let v = black_box(&mut *vec);
-                v.push(black_box(0));
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_push_fast(b: &mut Bencher) {
-        let mut buffer = VecT::with_capacity(N);
-        b.iter(|| {
-            buffer.clear();
-            let mut vec = black_box(FastVec::from(core::mem::take(&mut buffer)));
-            for _ in 0..black_box(N) {
-                let v = black_box(&mut vec);
-                v.reserve(1);
-                unsafe { v.push_unchecked(black_box(0)) };
-            }
-            buffer = vec.into();
-        });
-    }
-
-    #[bench]
-    fn bench_push_unchecked(b: &mut Bencher) {
-        let mut buffer = VecT::with_capacity(N);
-        b.iter(|| {
-            buffer.clear();
-            let vec = black_box(&mut buffer);
-            for _ in 0..black_box(N) {
-                let v = black_box(&mut *vec);
-                unsafe { v.push_unchecked(black_box(0)) };
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_push_unchecked_fast(b: &mut Bencher) {
-        let mut buffer = VecT::with_capacity(N);
-        b.iter(|| {
-            buffer.clear();
-            let mut vec = black_box(FastVec::from(core::mem::take(&mut buffer)));
-            for _ in 0..black_box(N) {
-                let v = black_box(&mut vec);
-                unsafe { v.push_unchecked(black_box(0)) };
-            }
-            buffer = vec.into();
-        });
-    }
-
-    #[bench]
-    fn bench_reserve(b: &mut Bencher) {
-        let mut buffer = VecT::with_capacity(N);
-        b.iter(|| {
-            buffer.clear();
-            let vec = black_box(&mut buffer);
-            for _ in 0..black_box(N) {
-                black_box(&mut *vec).reserve(1);
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_reserve_fast(b: &mut Bencher) {
-        let mut buffer = VecT::with_capacity(N);
-        b.iter(|| {
-            buffer.clear();
-            let mut vec = black_box(FastVec::from(core::mem::take(&mut buffer)));
-            for _ in 0..black_box(N) {
-                black_box(&mut vec).reserve(1);
-            }
-            buffer = vec.into();
-        });
     }
 }
