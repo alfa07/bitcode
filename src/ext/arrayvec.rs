@@ -173,16 +173,18 @@ impl<T: Encode, const N: usize> Encode for ArrayVec<T, N> {
     type Encoder = VecEncoder<T>;
 }
 
-pub struct ArrayVecDecoder<'a, T: Decode<'a>, const N: usize>(
+pub struct ArrayVecDecoder<'a, T: Decode<'a> + Send + Sync, const N: usize>(
     VecDecoder<'a, T>,
 );
 // Can't derive since it would bound T: Default.
-impl<'a, T: Decode<'a>, const N: usize> Default for ArrayVecDecoder<'a, T, N> {
+impl<'a, T: Decode<'a> + Send + Sync, const N: usize> Default
+    for ArrayVecDecoder<'a, T, N>
+{
     fn default() -> Self {
         Self(Default::default())
     }
 }
-impl<'a, T: Decode<'a>, const N: usize> View<'a>
+impl<'a, T: Decode<'a> + Send + Sync, const N: usize> View<'a>
     for ArrayVecDecoder<'a, T, N>
 {
     fn populate(&mut self, input: &mut &'a [u8], length: usize) -> Result<()> {
@@ -194,8 +196,8 @@ impl<'a, T: Decode<'a>, const N: usize> View<'a>
         Ok(())
     }
 }
-impl<'a, T: Decode<'a>, const N: usize> Decoder<'a, ArrayVec<T, N>>
-    for ArrayVecDecoder<'a, T, N>
+impl<'a, T: Decode<'a> + Send + Sync, const N: usize>
+    Decoder<'a, ArrayVec<T, N>> for ArrayVecDecoder<'a, T, N>
 {
     #[inline(always)]
     fn decode_in_place(&mut self, out: &mut MaybeUninit<ArrayVec<T, N>>) {
@@ -212,7 +214,9 @@ impl<'a, T: Decode<'a>, const N: usize> Decoder<'a, ArrayVec<T, N>>
         }
     }
 }
-impl<'a, T: Decode<'a>, const N: usize> Decode<'a> for ArrayVec<T, N> {
+impl<'a, T: Decode<'a> + Send + Sync, const N: usize> Decode<'a>
+    for ArrayVec<T, N>
+{
     type Decoder = ArrayVecDecoder<'a, T, N>;
 }
 

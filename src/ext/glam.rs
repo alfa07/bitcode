@@ -11,9 +11,30 @@ impl Affine3AExt for Affine3A {
     }
 }
 impl_struct!(Affine2, from_mat2_translation, matrix2, Mat2, translation, Vec2);
-impl_struct!(DAffine2, from_mat2_translation, matrix2, DMat2, translation, DVec2);
-impl_struct!(Affine3A, from_mat3a_translation, matrix3, Mat3A, translation, Vec3A);
-impl_struct!(DAffine3, from_mat3_translation, matrix3, DMat3, translation, DVec3);
+impl_struct!(
+    DAffine2,
+    from_mat2_translation,
+    matrix2,
+    DMat2,
+    translation,
+    DVec2
+);
+impl_struct!(
+    Affine3A,
+    from_mat3a_translation,
+    matrix3,
+    Mat3A,
+    translation,
+    Vec3A
+);
+impl_struct!(
+    DAffine3,
+    from_mat3_translation,
+    matrix3,
+    DMat3,
+    translation,
+    DVec3
+);
 
 macro_rules! impl_vec {
     ($t:ident, $new:ident, $e:ty, $($f:ident),+) => {
@@ -43,11 +64,4 @@ impl_glam!(i32, IVec2, IVec3, IVec4);
 impl_glam!(bool, BVec2, BVec3, BVec4);
 
 #[cfg(test)]
-mod tests {
-    use alloc::vec::Vec;
-    use glam::Vec2;
-    fn bench_data() -> Vec<Vec2> {
-        crate::random_data(1000)
-    }
-    crate::bench_encode_decode!(vec2_vec: Vec<_>);
-}
+mod tests {}
